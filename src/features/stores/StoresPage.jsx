@@ -15,7 +15,7 @@ export default function StoresPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [error, setError] = useState(null)
   const [chartDays, setChartDays] = useState(14)
-  const pageSize = 10
+  const pageSize = 25
 
   useEffect(() => {
     setTimeout(() => {
