@@ -3,6 +3,14 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recha
 const COLORS = ['#c9a962', '#d4b978', '#8b7355', '#6b5b4f', '#4a4a4a']
 
 export default function PieChartComponent({ data, dataKey = 'value', nameKey = 'name', height = 300 }) {
+  if (!data || data.length === 0) {
+    return (
+      <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="text-textSecondary">
+        暂无数据
+      </div>
+    )
+  }
+
   return (
     <ResponsiveContainer width="100%" height={height}>
       <PieChart>

@@ -6,6 +6,14 @@ const colors = {
 }
 
 export default function TrendChart({ data, dataKey = 'value', height = 300 }) {
+  if (!data || data.length === 0) {
+    return (
+      <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="text-textSecondary">
+        暂无数据
+      </div>
+    )
+  }
+
   return (
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
