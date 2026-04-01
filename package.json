@@ -10,11 +10,11 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.100.0",
+    "@supabase/supabase-js": "^2.101.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "recharts": "^3.8.0",
-    "react-router-dom": "^7.0.0"
+    "react-router-dom": "^7.0.0",
+    "recharts": "^3.8.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.0.1",

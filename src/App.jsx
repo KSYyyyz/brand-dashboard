@@ -6,11 +6,11 @@ import StoresPage from './features/stores/StoresPage'
 import DataManagementPage from './features/data/DataManagementPage'
 
 const navItems = [
-  { path: '/', label: '数据概览', icon: '📊' },
-  { path: '/users', label: '用户画像', icon: '👥' },
-  { path: '/operations', label: '运营分析', icon: '📈' },
-  { path: '/stores', label: '门店管理', icon: '🏪' },
-  { path: '/data', label: '数据管理', icon: '⚙️' }
+  { path: '/', label: '数据概览' },
+  { path: '/users', label: '用户画像' },
+  { path: '/operations', label: '运营分析' },
+  { path: '/stores', label: '门店管理' },
+  { path: '/data', label: '数据管理' }
 ]
 
 function Layout({ children }) {
@@ -34,13 +34,12 @@ function Layout({ children }) {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-1 transition-colors ${
+                className={`flex items-center px-3 py-2 rounded-lg mb-1 transition-colors ${
                   isActive
                     ? 'bg-accent/20 text-accent'
                     : 'text-textSecondary hover:bg-secondary/80 hover:text-textPrimary'
                 }`}
               >
-                <span>{item.icon}</span>
                 <span className="text-sm">{item.label}</span>
               </Link>
             )

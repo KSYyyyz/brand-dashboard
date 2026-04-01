@@ -123,21 +123,18 @@ export default function DataManagementPage() {
       <Card title="当前数据统计">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {[
-            { name: '用户数据', key: 'users', icon: '👥' },
-            { name: '订单数据', key: 'orders', icon: '📦' },
-            { name: '门店数据', key: 'stores', icon: '🏪' },
-            { name: '销售数据', key: 'storeSales', icon: '💰' },
-            { name: '投流数据', key: 'adsData', icon: '📢' },
-            { name: '内容数据', key: 'contentData', icon: '📝' }
+            { name: '用户数据', key: 'users' },
+            { name: '订单数据', key: 'orders' },
+            { name: '门店数据', key: 'stores' },
+            { name: '销售数据', key: 'storeSales' },
+            { name: '投流数据', key: 'adsData' },
+            { name: '内容数据', key: 'contentData' }
           ].map(item => (
             <div key={item.key} className="bg-primary p-4 rounded-lg flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{item.icon}</span>
-                <div>
-                  <div className="text-sm text-textSecondary">{item.name}</div>
-                  <div className="text-lg font-bold text-textPrimary">
-                    {dataStats ? dataStats[item.key] : '-'} 条
-                  </div>
+              <div>
+                <div className="text-sm text-textSecondary">{item.name}</div>
+                <div className="text-lg font-bold text-textPrimary">
+                  {dataStats ? dataStats[item.key] : '-'} 条
                 </div>
               </div>
               <Badge variant={dataStats && dataStats[item.key] > 0 ? 'success' : 'default'}>
