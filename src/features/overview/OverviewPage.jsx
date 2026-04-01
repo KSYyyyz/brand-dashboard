@@ -7,13 +7,20 @@ import { generateAllMockData } from '../../lib/mock-generator'
 export default function OverviewPage() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState(null)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     // 模拟数据加载
     setTimeout(() => {
-      const mockData = generateAllMockData()
-      setData(mockData)
-      setLoading(false)
+      try {
+        const mockData = generateAllMockData()
+        setData(mockData)
+        setLoading(false)
+      } catch (err) {
+        console.error('概览数据加载失败:', err)
+        setError(err.message)
+        setLoading(false)
+      }
     }, 500)
   }, [])
 
@@ -23,6 +30,17 @@ export default function OverviewPage() {
         <h1 className="text-2xl font-bold">数据概览</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[1,2,3,4].map(i => <div key={i} className="h-32 bg-secondary rounded-lg animate-pulse" />)}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold">数据概览</h1>
+        <div className="p-4 bg-error/20 text-error rounded-lg">
+          数据加载失败: {error}
         </div>
       </div>
     )
