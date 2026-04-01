@@ -7,29 +7,44 @@ import BarChartComponent from '../../components/charts/BarChart'
 
 // 闻献品牌真实商品数据
 const PRODUCTS = [
-  { id: 1, name: '初熟之物 (NAIVE)', category: '浓香水', price: 2980, stock: 45, sales: 156, collection: '第一季' },
-  { id: 2, name: '体物入微 (SENSITIVE)', category: '浓香水', price: 2980, stock: 38, sales: 112, collection: '第一季' },
-  { id: 3, name: '夜漠回声 (OFF)', category: '浓香水', price: 2680, stock: 52, sales: 98, collection: '第一季' },
-  { id: 4, name: '柔韧荆棘 (Tough Love)', category: '浓香水', price: 2680, stock: 28, sales: 87, collection: '第一季' },
-  { id: 5, name: '腹语之术 (Stock)', category: '浓香水', price: 2880, stock: 35, sales: 76, collection: '第一季' },
-  { id: 6, name: '席地而坐 (Mat)', category: '浓香水', price: 2880, stock: 42, sales: 65, collection: '第一季' },
-  { id: 7, name: '丹沉 (Chen)', category: '浓香水', price: 3280, stock: 58, sales: 143, collection: '第七季' },
-  { id: 8, name: '赤檀 (Tan)', category: '浓香水', price: 3280, stock: 72, sales: 198, collection: '第七季' },
-  { id: 9, name: '龙吟 (Long)', category: '浓香水', price: 3580, stock: 25, sales: 67, collection: '第七季' },
-  { id: 10, name: '麝语 (She)', category: '浓香水', price: 3580, stock: 30, sales: 89, collection: '第七季' },
-  { id: 11, name: '杉间', category: '浓香水', price: 2880, stock: 55, sales: 120, collection: '第五季' },
-  { id: 12, name: '蛮柚', category: '浓香水', price: 2680, stock: 48, sales: 95, collection: '第六季' },
-  { id: 13, name: '初熟之物洗发水', category: '身体护理', price: 395, stock: 120, sales: 234, collection: '香氛洗护' },
-  { id: 14, name: '体物入微护发素', category: '身体护理', price: 395, stock: 98, sales: 189, collection: '香氛洗护' },
-  { id: 15, name: '初熟之物身体乳', category: '身体护理', price: 520, stock: 85, sales: 156, collection: '香氛洗护' },
-  { id: 16, name: '体物入微护手霜', category: '身体护理', price: 295, stock: 150, sales: 278, collection: '香氛洗护' },
-  { id: 17, name: '初熟之物洗手液', category: '身体护理', price: 295, stock: 110, sales: 145, collection: '香氛洗护' },
-  { id: 18, name: '银炭滴香', category: '香薰', price: 1680, stock: 40, sales: 56, collection: '其他' },
-  { id: 19, name: '电子香薰机', category: '香薰', price: 980, stock: 65, sales: 89, collection: '其他' },
-  { id: 20, name: '车载香氛', category: '香薰', price: 480, stock: 180, sales: 320, collection: '其他' }
+  // 第一季：人无完人 HUMAN
+  { id: 1, name: '初熟之物 NAIVE', category: '浓香水', price: 2980, stock: 45, sales: 156, collection: '第一季' },
+  { id: 2, name: '体物入微 SENSITIVE', category: '浓香水', price: 2980, stock: 38, sales: 112, collection: '第一季' },
+  { id: 3, name: '夜漠回声 OFF', category: '浓香水', price: 2680, stock: 52, sales: 98, collection: '第一季' },
+  { id: 4, name: '柔韧荆棘 Tough Love', category: '浓香水', price: 2680, stock: 28, sales: 87, collection: '第一季' },
+  { id: 5, name: '腹语之术 Stock', category: '浓香水', price: 2880, stock: 35, sales: 76, collection: '第一季' },
+  { id: 6, name: '席地而坐 Mat', category: '浓香水', price: 2880, stock: 42, sales: 65, collection: '第一季' },
+  // 第二季：人面兽心 FREE
+  { id: 7, name: '席地而坐 SIT', category: '浓香水', price: 1750, stock: 55, sales: 120, collection: '第二季' },
+  { id: 8, name: '羁旅归途 WONDER', category: '浓香水', price: 1750, stock: 40, sales: 85, collection: '第二季' },
+  { id: 9, name: '相拥之后 HUG', category: '浓香水', price: 1750, stock: 35, sales: 72, collection: '第二季' },
+  { id: 10, name: '芳草留痕 LAY', category: '浓香水', price: 1750, stock: 30, sales: 58, collection: '第二季' },
+  { id: 11, name: '灵光没顶 THINK', category: '浓香水', price: 1750, stock: 25, sales: 45, collection: '第二季' },
+  { id: 12, name: '空无一木 VOID', category: '浓香水', price: 1750, stock: 20, sales: 38, collection: '第二季' },
+  // 第四季：仙 XIAN
+  { id: 13, name: '羽化仙 FEATHER', category: '浓香水', price: 3280, stock: 22, sales: 42, collection: '第四季' },
+  // 第五季
+  { id: 14, name: '杉间', category: '浓香水', price: 2880, stock: 55, sales: 120, collection: '第五季' },
+  // 第六季
+  { id: 15, name: '蛮柚', category: '浓香水', price: 2680, stock: 48, sales: 95, collection: '第六季' },
+  // 第七季：沉檀龙麝
+  { id: 16, name: '丹沉', category: '浓香水', price: 3280, stock: 58, sales: 143, collection: '第七季' },
+  { id: 17, name: '赤檀', category: '浓香水', price: 3280, stock: 72, sales: 198, collection: '第七季' },
+  { id: 18, name: '龙吟', category: '浓香水', price: 3580, stock: 25, sales: 67, collection: '第七季' },
+  { id: 19, name: '麝语', category: '浓香水', price: 3580, stock: 30, sales: 89, collection: '第七季' },
+  // 香氛身体护理系列
+  { id: 20, name: '初熟之物洗发水', category: '身体护理', price: 395, stock: 120, sales: 234, collection: '香氛洗护' },
+  { id: 21, name: '体物入微护发素', category: '身体护理', price: 395, stock: 98, sales: 189, collection: '香氛洗护' },
+  { id: 22, name: '初熟之物身体乳', category: '身体护理', price: 520, stock: 85, sales: 156, collection: '香氛洗护' },
+  { id: 23, name: '体物入微护手霜', category: '身体护理', price: 295, stock: 150, sales: 278, collection: '香氛洗护' },
+  { id: 24, name: '初熟之物洗手液', category: '身体护理', price: 295, stock: 110, sales: 145, collection: '香氛洗护' },
+  // 其他品类
+  { id: 25, name: '银炭滴香', category: '香薰', price: 1680, stock: 40, sales: 56, collection: '其他' },
+  { id: 26, name: '电子香薰机', category: '香薰', price: 980, stock: 65, sales: 89, collection: '其他' },
+  { id: 27, name: '车载香氛', category: '香薰', price: 480, stock: 180, sales: 320, collection: '其他' }
 ]
 
-const COLLECTIONS = ['全部', '第一季', '第五季', '第六季', '第七季', '香氛洗护', '其他']
+const COLLECTIONS = ['全部', '第一季', '第二季', '第四季', '第五季', '第六季', '第七季', '香氛洗护', '其他']
 const CATEGORIES = ['全部', '浓香水', '身体护理', '香薰']
 
 export default function ProductsPage() {
