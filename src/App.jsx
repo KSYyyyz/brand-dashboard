@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
+import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
 import OverviewPage from './features/overview/OverviewPage'
 import UsersPage from './features/users/UsersPage'
 import OperationsPage from './features/operations/OperationsPage'
@@ -62,7 +62,7 @@ function Layout({ children }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Layout>
         <Routes>
           <Route path="/" element={<OverviewPage />} />
@@ -72,6 +72,6 @@ export default function App() {
           <Route path="/data" element={<DataManagementPage />} />
         </Routes>
       </Layout>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
