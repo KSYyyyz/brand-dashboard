@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import { generateAllMockData } from '../../lib/mock-generator'
@@ -9,9 +9,16 @@ export default function DataManagementPage() {
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState(null)
   const [dataStats, setDataStats] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  // 页面加载时获取统计
+  useEffect(() => {
+    fetchDataStats()
+  }, [])
 
   // 获取数据统计
   const fetchDataStats = async () => {
+    setLoading(true)
     try {
       const [users, orders, stores, storeSales, adsData, contentData] = await Promise.all([
         supabase.from('users').select('id', { count: 'exact', head: true }),
@@ -32,6 +39,9 @@ export default function DataManagementPage() {
       })
     } catch (error) {
       console.error('获取数据统计失败:', error)
+      setMessage({ type: 'error', text: '无法连接到Supabase，请检查网络和配置' })
+    } finally {
+      setLoading(false)
     }
   }
 

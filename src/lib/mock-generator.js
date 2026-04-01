@@ -94,14 +94,25 @@ export function generateOrders(users, count = 1500) {
 // 生成门店数据
 export function generateStores(count = 10) {
   const stores = []
-  const storeNames = ['上海IFSM店', '北京三里屯店', '杭州湖滨银泰店', '深圳万象城店', '成都太古里店',
-    '广州天环广场店', '南京金陵饭店', '武汉武商广场店', '长沙IFS店', '厦门万象城店']
+  // 闻献真实门店名称
+  const storeNames = [
+    '上海静安嘉里中心店',
+    '上海IFSM店',
+    '北京三里屯店',
+    '北京SKP店',
+    '成都太古里店',
+    '杭州湖滨银泰店',
+    '深圳万象城店',
+    '广州天环广场店',
+    '南京金陵饭店店',
+    '武汉武商广场店'
+  ]
 
   for (let i = 1; i <= count; i++) {
     const province = PROVINCES[i % PROVINCES.length]
     stores.push({
       id: i,
-      store_code: `S${String(i).padStart(3, '0')}`,
+      store_code: `DOC${String(i).padStart(3, '0')}`,
       store_name: storeNames[i - 1] || `闻献门店${i}`,
       province,
       city: pick(CITIES[province]),

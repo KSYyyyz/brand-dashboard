@@ -5,22 +5,24 @@ import Badge from '../../components/ui/Badge'
 import Table from '../../components/ui/Table'
 import BarChartComponent from '../../components/charts/BarChart'
 
-// 闻献品牌商品数据
+// 闻献品牌真实商品数据
 const PRODUCTS = [
-  { id: 1, name: '龙涎幽冥浓香水', category: '浓香水', price: 2980, stock: 56, sales: 128, collection: '信仰系列' },
-  { id: 2, name: '沉香静神浓香水', category: '浓香水', price: 2680, stock: 43, sales: 95, collection: '信仰系列' },
-  { id: 3, name: '檀木时光淡香水', category: '淡香水', price: 1680, stock: 78, sales: 156, collection: '时光系列' },
-  { id: 4, name: '麝香秘境香薰蜡烛', category: '香薰蜡烛', price: 680, stock: 120, sales: 89, collection: '秘境系列' },
-  { id: 5, name: '乌木沉香身体乳', category: '身体护理', price: 580, stock: 95, sales: 67, collection: '信仰系列' },
-  { id: 6, name: '琥珀流光香氛礼盒', category: '礼盒套装', price: 3980, stock: 25, sales: 42, collection: '节日限定' },
-  { id: 7, name: '白茶清新淡香水', category: '淡香水', price: 1280, stock: 88, sales: 134, collection: '时光系列' },
-  { id: 8, name: '黑琥珀私密浓香水', category: '浓香水', price: 3280, stock: 18, sales: 35, collection: '信仰系列' },
-  { id: 9, name: '玫瑰之约香氛皂', category: '身体护理', price: 280, stock: 200, sales: 178, collection: '秘境系列' },
-  { id: 10, name: '海洋之心车载香氛', category: '空间香氛', price: 480, stock: 150, sales: 92, collection: '时光系列' }
+  { id: 1, name: '瑶宫浓香水', category: '浓香水', price: 2980, stock: 45, sales: 156, collection: '第一季' },
+  { id: 2, name: '兰汁浓香水', category: '浓香水', price: 2680, stock: 38, sales: 112, collection: '第一季' },
+  { id: 3, name: '韭梦浓香水', category: '浓香水', price: 2680, stock: 52, sales: 98, collection: '第一季' },
+  { id: 4, name: '鸣眼浓香水', category: '浓香水', price: 2880, stock: 28, sales: 87, collection: '第一季' },
+  { id: 5, name: '斗梅浓香水', category: '浓香水', price: 2880, stock: 35, sales: 76, collection: '第一季' },
+  { id: 6, name: '破照浓香水', category: '浓香水', price: 2680, stock: 42, sales: 65, collection: '第一季' },
+  { id: 7, name: '喜复浓香水', category: '浓香水', price: 2480, stock: 58, sales: 143, collection: '第一季' },
+  { id: 8, name: '满庭芳淡香水', category: '淡香水', price: 1680, stock: 72, sales: 198, collection: '第一季' },
+  { id: 9, name: '方寸记忆香薰蜡烛', category: '香薰蜡烛', price: 480, stock: 95, sales: 67, collection: '第二季' },
+  { id: 10, name: '少年与花身体乳', category: '身体护理', price: 380, stock: 120, sales: 89, collection: '第二季' },
+  { id: 11, name: '少年与海淡香水', category: '淡香水', price: 1480, stock: 65, sales: 134, collection: '第二季' },
+  { id: 12, name: '金色眼泪浓香水', category: '浓香水', price: 3280, stock: 22, sales: 45, collection: '节日限定' }
 ]
 
-const COLLECTIONS = ['全部', '信仰系列', '时光系列', '秘境系列', '节日限定']
-const CATEGORIES = ['全部', '浓香水', '淡香水', '香薰蜡烛', '身体护理', '礼盒套装', '空间香氛']
+const COLLECTIONS = ['全部', '第一季', '第二季', '节日限定']
+const CATEGORIES = ['全部', '浓香水', '淡香水', '香薰蜡烛', '身体护理']
 
 export default function ProductsPage() {
   const [loading, setLoading] = useState(true)
