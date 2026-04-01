@@ -14,30 +14,38 @@ export default function UsersPage() {
   const [orders, setOrders] = useState([])
   const [filter, setFilter] = useState({ level: '', province: '', search: '' })
   const [currentPage, setCurrentPage] = useState(1)
+  const [error, setError] = useState(null)
   const pageSize = 10
 
   useEffect(() => {
     setTimeout(() => {
-      const mockData = generateAllMockData()
-      setUsers(mockData.users)
-      setOrders(mockData.orders)
-      setLoading(false)
+      try {
+        const mockData = generateAllMockData()
+        setUsers(mockData.users || [])
+        setOrders(mockData.orders || [])
+        setLoading(false)
+      } catch (err) {
+        console.error('用户数据加载失败:', err)
+        setError(err.message)
+        setLoading(false)
+      }
     }, 500)
   }, [])
 
   // 用户分层统计
   const userStats = useMemo(() => {
+    const userList = users || []
     const stats = MEMBER_LEVELS.map(level => ({
       name: level,
-      value: users.filter(u => u.level === level).length
+      value: userList.filter(u => u && u.level === level).length
     }))
 
     // 计算用户分层（基于订单）
     const分层 = [
-      { name: '潜客', value: users.filter(u => u.order_count === 0).length },
-      { name: '首单客', value: users.filter(u => u.order_count === 1).length },
-      { name: '复购客', value: users.filter(u => u.order_count >= 2 && u.order_count < 5).length },
-      { name: '忠诚客', value: users.filter(u => u.order_count >= 5).length }
+      { name: '潜客', value: userList.filter(u => u && u.order_count === 0).length },
+      { name: '首单客', value: userList.filter(u => u && u.order_count === 1).length },
+      { name: '复购客', value: userList.filter(u => u && u.order_count >= 2 && u.order_count < 5).length },
+      { name: '忠诚客', value: userList.filter(u => u && u.order_count >= 5).length }
     ]
 
     return { stats, 分层 }
@@ -46,8 +54,10 @@ export default function UsersPage() {
   // 省份分布
   const provinceStats = useMemo(() => {
     const provinceMap = {}
-    users.forEach(u => {
-      provinceMap[u.province] = (provinceMap[u.province] || 0) + 1
+    ;(users || []).forEach(u => {
+      if (u && u.province) {
+        provinceMap[u.province] = (provinceMap[u.province] || 0) + 1
+      }
     })
     return Object.entries(provinceMap)
       .map(([name, value]) => ({ name, value }))
@@ -57,14 +67,16 @@ export default function UsersPage() {
 
   // 筛选后的用户
   const filteredUsers = useMemo(() => {
-    return users.filter(user => {
+    return (users || []).filter(user => {
+      if (!user) return false
       if (filter.level && user.level !== filter.level) return false
       if (filter.province && user.province !== filter.province) return false
       if (filter.search) {
         const search = filter.search.toLowerCase()
-        if (!user.name.toLowerCase().includes(search) &&
-            !user.phone.includes(search) &&
-            !user.vip_no.toLowerCase().includes(search)) {
+        const name = (user.name || '').toLowerCase()
+        const phone = user.phone || ''
+        const vipNo = (user.vip_no || '').toLowerCase()
+        if (!name.includes(search) && !phone.includes(search) && !vipNo.includes(search)) {
           return false
         }
       }
@@ -81,13 +93,13 @@ export default function UsersPage() {
   const totalPages = Math.ceil(filteredUsers.length / pageSize)
 
   const columns = [
-    { key: 'vip_no', title: '会员编号', render: (v) => <span className="text-accent">{v}</span> },
+    { key: 'vip_no', title: '会员编号', render: (v) => <span className="text-accent">{v || '-'}</span> },
     { key: 'name', title: '姓名' },
     { key: 'phone', title: '手机号' },
-    { key: 'level', title: '等级', render: (v) => <Badge variant="accent">{v}</Badge> },
+    { key: 'level', title: '等级', render: (v) => <Badge variant="accent">{v || '-'}</Badge> },
     { key: 'province', title: '省份' },
     { key: 'order_count', title: '订单数' },
-    { key: 'total_amount', title: '累计消费', render: (v) => `¥${v.toLocaleString()}` }
+    { key: 'total_amount', title: '累计消费', render: (v) => `¥${(v || 0).toLocaleString()}` }
   ]
 
   if (loading) {
@@ -97,6 +109,17 @@ export default function UsersPage() {
         <div className="grid grid-cols-2 gap-6">
           <div className="h-96 bg-secondary rounded-lg animate-pulse" />
           <div className="h-96 bg-secondary rounded-lg animate-pulse" />
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold">用户画像</h1>
+        <div className="p-4 bg-error/20 text-error rounded-lg">
+          数据加载失败: {error}
         </div>
       </div>
     )
@@ -114,7 +137,7 @@ export default function UsersPage() {
         <Card title="用户分层模型">
           <div className="space-y-4">
             {userStats.分层.map(item => {
-              const percent = Math.round(item.value / users.length * 100)
+              const percent = users.length > 0 ? Math.round(item.value / users.length * 100) : 0
               return (
                 <div key={item.name} className="space-y-1">
                   <div className="flex justify-between text-sm">
