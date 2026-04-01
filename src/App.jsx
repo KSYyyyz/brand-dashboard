@@ -46,7 +46,7 @@ function Sidebar() {
 
       {/* 底部 */}
       <div className="p-4 border-t border-border text-xs text-textSecondary">
-        MVP v0.0.1
+        MVP v0.0.2
       </div>
     </aside>
   )
