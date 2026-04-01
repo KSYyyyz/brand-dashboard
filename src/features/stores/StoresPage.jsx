@@ -12,15 +12,22 @@ export default function StoresPage() {
   const [filter, setFilter] = useState({ status: '', province: '', search: '' })
   const [selectedStore, setSelectedStore] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [error, setError] = useState(null)
   const pageSize = 10
 
   useEffect(() => {
     setTimeout(() => {
-      const mockData = generateAllMockData()
-      setStores(mockData.stores)
-      setStoreSales(mockData.storeSales)
-      setSelectedStore(mockData.stores[0]?.id)
-      setLoading(false)
+      try {
+        const mockData = generateAllMockData()
+        setStores(mockData.stores || [])
+        setStoreSales(mockData.storeSales || [])
+        setSelectedStore(mockData.stores[0]?.id || null)
+        setLoading(false)
+      } catch (err) {
+        console.error('门店数据加载失败:', err)
+        setError(err.message)
+        setLoading(false)
+      }
     }, 500)
   }, [])
 
@@ -100,6 +107,17 @@ export default function StoresPage() {
         <h1 className="text-2xl font-bold">门店管理</h1>
         <div className="grid grid-cols-3 gap-4">
           {[1,2,3].map(i => <div key={i} className="h-32 bg-secondary rounded-lg animate-pulse" />)}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold">门店管理</h1>
+        <div className="p-4 bg-error/20 text-error rounded-lg">
+          数据加载失败: {error}
         </div>
       </div>
     )

@@ -9,13 +9,20 @@ export default function OperationsPage() {
   const [loading, setLoading] = useState(true)
   const [adsData, setAdsData] = useState([])
   const [contentData, setContentData] = useState([])
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     setTimeout(() => {
-      const mockData = generateAllMockData()
-      setAdsData(mockData.adsData)
-      setContentData(mockData.contentData)
-      setLoading(false)
+      try {
+        const mockData = generateAllMockData()
+        setAdsData(mockData.adsData || [])
+        setContentData(mockData.contentData || [])
+        setLoading(false)
+      } catch (err) {
+        console.error('运营数据加载失败:', err)
+        setError(err.message)
+        setLoading(false)
+      }
     }, 500)
   }, [])
 
@@ -79,6 +86,17 @@ export default function OperationsPage() {
         <h1 className="text-2xl font-bold">运营分析</h1>
         <div className="grid grid-cols-3 gap-4">
           {[1,2,3].map(i => <div key={i} className="h-32 bg-secondary rounded-lg animate-pulse" />)}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold">运营分析</h1>
+        <div className="p-4 bg-error/20 text-error rounded-lg">
+          数据加载失败: {error}
         </div>
       </div>
     )
@@ -154,14 +172,17 @@ export default function OperationsPage() {
             { label: '总评论', key: 'comments', format: (v) => v.toLocaleString() },
             { label: '总分享', key: 'shares', format: (v) => v.toLocaleString() },
             { label: '总涨粉', key: 'fansGrowth', format: (v) => v.toLocaleString() }
-          ].map(item => (
-            <div key={item.key} className="bg-primary p-4 rounded-lg text-center">
-              <div className="text-textSecondary text-sm">{item.label}</div>
-              <div className="text-xl font-bold text-accent mt-1">
-                {contentStats.reduce((sum, s) => item.format(sum + s[item.key]), 0)}
+          ].map(item => {
+            const total = contentStats.reduce((sum, s) => sum + (s[item.key] || 0), 0)
+            return (
+              <div key={item.key} className="bg-primary p-4 rounded-lg text-center">
+                <div className="text-textSecondary text-sm">{item.label}</div>
+                <div className="text-xl font-bold text-accent mt-1">
+                  {item.format(total)}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </Card>
 
