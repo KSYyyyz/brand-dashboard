@@ -96,26 +96,29 @@ export function generateStores(count = 10) {
   const stores = []
   // 闻献真实门店名称
   const storeNames = [
-    '上海静安嘉里中心店',
-    '上海IFSM店',
-    '北京三里屯店',
-    '北京SKP店',
-    '成都太古里店',
-    '杭州湖滨银泰店',
-    '深圳万象城店',
-    '广州天环广场店',
-    '南京金陵饭店店',
-    '武汉武商广场店'
+    '晶坛空间',
+    '珑宫',
+    '愚园书室',
+    '密窖空间',
+    '月朗空间',
+    '隐廊',
+    '碧湾空间',
+    '竹林',
+    '粼廊空间',
+    '富春明廊'
+  ]
+
+  const storeCities = [
+    '上海', '上海', '上海', '北京', '北京', '深圳', '深圳', '成都', '成都', '杭州'
   ]
 
   for (let i = 1; i <= count; i++) {
-    const province = PROVINCES[i % PROVINCES.length]
     stores.push({
       id: i,
       store_code: `DOC${String(i).padStart(3, '0')}`,
       store_name: storeNames[i - 1] || `闻献门店${i}`,
-      province,
-      city: pick(CITIES[province]),
+      province: storeCities[i - 1] || '上海',
+      city: storeCities[i - 1] || '上海',
       area: pick(['核心商圈', '商业综合体', '购物中心']),
       staff_count: random(5, 20),
       opening_date: `202${random(1, 4)}-${String(random(1, 12)).padStart(2, '0')}-01`,
