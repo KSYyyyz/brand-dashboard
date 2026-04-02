@@ -82,7 +82,7 @@ export default function OperationsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="p-6 space-y-6">
         <h1 className="text-2xl font-bold">运营分析</h1>
         <div className="grid grid-cols-3 gap-4">
           {[1,2,3].map(i => <div key={i} className="h-32 bg-secondary rounded-lg animate-pulse" />)}
@@ -93,7 +93,7 @@ export default function OperationsPage() {
 
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="p-6 space-y-6">
         <h1 className="text-2xl font-bold">运营分析</h1>
         <div className="p-4 bg-error/20 text-error rounded-lg">
           数据加载失败: {error}
@@ -107,7 +107,7 @@ export default function OperationsPage() {
   const totalViews = contentStats.reduce((sum, s) => sum + s.views, 0)
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">运营分析</h1>
 
       {/* 投流核心指标 */}

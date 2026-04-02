@@ -119,7 +119,7 @@ export default function DataManagementPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">数据管理</h1>
 
       {/* 消息提示 */}

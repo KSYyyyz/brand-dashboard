@@ -102,7 +102,7 @@ export default function UsersPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="p-6 space-y-6">
         <h1 className="text-2xl font-bold">用户画像</h1>
         <div className="grid grid-cols-2 gap-6">
           <div className="h-96 bg-secondary rounded-lg animate-pulse" />
@@ -114,7 +114,7 @@ export default function UsersPage() {
 
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="p-6 space-y-6">
         <h1 className="text-2xl font-bold">用户画像</h1>
         <div className="p-4 bg-error/20 text-error rounded-lg">
           数据加载失败: {error}
@@ -124,7 +124,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">用户画像</h1>
 
       {/* 用户分层 */}

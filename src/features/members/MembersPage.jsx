@@ -105,7 +105,7 @@ export default function MembersPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="p-6 space-y-6">
         <h1 className="text-2xl font-bold">会员管理</h1>
         <div className="grid grid-cols-4 gap-4">
           {[1,2,3,4].map(i => <div key={i} className="h-32 bg-secondary rounded-lg animate-pulse" />)}
@@ -116,7 +116,7 @@ export default function MembersPage() {
 
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="p-6 space-y-6">
         <h1 className="text-2xl font-bold">会员管理</h1>
         <div className="p-4 bg-error/20 text-error rounded-lg">
           数据加载失败: {error}
@@ -130,7 +130,7 @@ export default function MembersPage() {
   const totalConsumption = users.reduce((sum, u) => sum + (u?.total_amount || 0), 0)
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">会员管理</h1>
 
       {/* 核心指标 */}
