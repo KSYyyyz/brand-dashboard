@@ -1,4 +1,6 @@
 import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
+import { DateRangeProvider } from './context/DateRangeContext'
+import DateRangePicker from './components/ui/DateRangePicker'
 import OverviewPage from './features/overview/OverviewPage'
 import UsersPage from './features/users/UsersPage'
 import OperationsPage from './features/operations/OperationsPage'
@@ -61,16 +63,24 @@ export default function App() {
     <HashRouter>
       <div className="flex min-h-screen">
         <Sidebar />
-        <main className="flex-1 p-6 overflow-auto">
-          <Routes>
-            <Route path="/" element={<OverviewPage />} />
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="/members" element={<MembersPage />} />
-            <Route path="/products" element={<ProductsPage />} />
-            <Route path="/operations" element={<OperationsPage />} />
-            <Route path="/stores" element={<StoresPage />} />
-            <Route path="/data" element={<DataManagementPage />} />
-          </Routes>
+        <main className="flex-1 flex flex-col overflow-auto">
+          {/* 顶部操作栏 */}
+          <div className="flex justify-end p-4">
+            <DateRangePicker />
+          </div>
+
+          {/* 页面内容 */}
+          <div className="flex-1 px-6 pb-6">
+            <Routes>
+              <Route path="/" element={<OverviewPage />} />
+              <Route path="/users" element={<UsersPage />} />
+              <Route path="/members" element={<MembersPage />} />
+              <Route path="/products" element={<ProductsPage />} />
+              <Route path="/operations" element={<OperationsPage />} />
+              <Route path="/stores" element={<StoresPage />} />
+              <Route path="/data" element={<DataManagementPage />} />
+            </Routes>
+          </div>
         </main>
       </div>
     </HashRouter>
