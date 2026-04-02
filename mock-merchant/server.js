@@ -449,6 +449,25 @@ app.get('/api/stores', (req, res) => {
   res.json(STORES)
 })
 
+// 0. 根路径
+app.get('/', (req, res) => {
+  res.json({
+    name: '闻献商户交易模拟服务',
+    version: '1.0.0',
+    endpoints: [
+      'GET  /api/health',
+      'GET  /api/stats',
+      'GET  /api/stats/daily',
+      'GET  /api/transactions',
+      'POST /api/transactions/generate',
+      'POST /api/transactions/batch',
+      'POST /api/init',
+      'GET  /api/products',
+      'GET  /api/stores'
+    ]
+  })
+})
+
 // 启动
 app.listen(PORT, () => {
   console.log(`
