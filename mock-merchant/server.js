@@ -80,7 +80,11 @@ const MEMBER_LEVELS = ['龙涎', '沉香', '檀木', '麝香', '非会员']
 // 工具函数
 const random = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)]
-const generateOrderNo = () => `WX${Date.now()}${random(1000, 9999)}`
+let orderCounter = Date.now()
+const generateOrderNo = () => {
+  orderCounter++
+  return `WX${orderCounter}${random(10, 99)}`
+}
 
 // 生成单笔交易
 function generateTransaction(timestamp = new Date()) {
@@ -165,7 +169,7 @@ app.get('/api/stats', async (req, res) => {
     const { start_date, end_date } = req.query
     let query = supabase
       .from('merchant_transactions')
-      .select('*')
+      .select('*', { count: 'exact' })
 
     if (start_date) {
       query = query.gte('order_time', start_date)
