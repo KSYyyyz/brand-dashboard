@@ -6,9 +6,12 @@ import DateRangePicker from '../../components/ui/DateRangePicker'
 import RefreshButton from '../../components/ui/RefreshButton'
 import { useData } from '../../context/DataContext'
 import { useDateRange, getDateRange } from '../../context/DateRangeContext'
+import { PRODUCTS, STORES } from '../../lib/constants'
 
 export default function OverviewPage() {
-  const { loading, transactions, products, stores, stats: allStats, dailyStats: allDailyStats, lastRefresh } = useData()
+  const { loading, transactions, lastRefresh } = useData()
+  const products = PRODUCTS
+  const stores = STORES
   const { range } = useDateRange()
 
   // 根据日期范围过滤交易

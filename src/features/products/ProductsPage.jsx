@@ -7,28 +7,7 @@ import BarChartComponent from '../../components/charts/BarChart'
 import ProductDetailModal from '../../components/ui/ProductDetailModal'
 import RefreshButton from '../../components/ui/RefreshButton'
 import { useData } from '../../context/DataContext'
-
-// 系列映射 - 基于商品名称关键词
-const COLLECTION_KEYWORDS = {
-  '第一季': ['初熟之物', '体物入微', '夜漠回声', '柔韧荆棘', '腹语之术', '席地而坐'],
-  '第二季': ['SIT', '羁旅归途', '相拥之后', '芳草留痕', '灵光没顶', '空无一木'],
-  '第四季': ['羽化仙'],
-  '第五季': ['杉间'],
-  '第六季': ['蛮柚'],
-  '第七季': ['丹沉', '赤檀', '龙吟', '麝语'],
-  '香氛洗护': ['洗发水', '护发素', '身体乳', '护手霜', '洗手液'],
-  '其他': ['银炭', '电子香薰机', '车载香氛']
-}
-
-function getCollection(productName) {
-  for (const [collection, keywords] of Object.entries(COLLECTION_KEYWORDS)) {
-    if (collection === '其他') continue
-    for (const keyword of keywords) {
-      if (productName.includes(keyword)) return collection
-    }
-  }
-  return '其他'
-}
+import { PRODUCTS, getCollection } from '../../lib/constants'
 
 const COLLECTIONS = ['全部', '第一季', '第二季', '第四季', '第五季', '第六季', '第七季', '香氛洗护', '其他']
 const CATEGORIES = ['全部', '浓香水', '身体护理', '香薰']
@@ -44,9 +23,9 @@ export default function ProductsPage() {
 
   const productStats = stats?.product_stats || []
 
-  // 合并商品和统计数据
+  // 使用内嵌商品数据，合并统计
   const mergedProducts = useMemo(() => {
-    return (products || []).map(p => {
+    return PRODUCTS.map(p => {
       const stat = productStats.find(s => s.product_id === p.id)
       return {
         ...p,
@@ -55,7 +34,7 @@ export default function ProductsPage() {
         collection: getCollection(p.name)
       }
     })
-  }, [products, productStats])
+  }, [productStats])
 
   // 筛选后的商品
   const filteredProducts = useMemo(() => {
@@ -93,7 +72,7 @@ export default function ProductsPage() {
       }))
   }, [productStats])
 
-  // 分类销量 - 使用 transactions 的 category
+  // 分类销量
   const categorySales = useMemo(() => {
     const map = {}
     productStats.forEach(p => {

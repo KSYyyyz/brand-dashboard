@@ -8,14 +8,7 @@ import DateRangePicker from '../../components/ui/DateRangePicker'
 import RefreshButton from '../../components/ui/RefreshButton'
 import { useData } from '../../context/DataContext'
 import { useDateRange, getDateRange } from '../../context/DateRangeContext'
-
-// 门店状态映射
-const STORE_STATUS = {
-  '夜庙': '升级中',
-  '亮堂空间': '已关闭',
-  '方舟ARK': '快闪店',
-  '红房子': '快闪店'
-}
+import { STORE_STATUS } from '../../lib/constants'
 
 export default function StoresPage() {
   const { loading, stores, transactions, stats } = useData()
@@ -23,11 +16,11 @@ export default function StoresPage() {
   const [selectedStore, setSelectedStore] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const { range } = useDateRange()
-  const pageSize = 25
+  const pageSize = 10
 
   // 为门店添加状态
   const storesWithStatus = useMemo(() => {
-    return (stores || []).map(s => ({
+    return stores.map(s => ({
       ...s,
       province: s.city,
       status: STORE_STATUS[s.name] || '营业中',
@@ -39,8 +32,8 @@ export default function StoresPage() {
   // 根据日期范围过滤交易
   const filteredTransactions = useMemo(() => {
     const { start, end } = getDateRange(range)
-    if (!start) return transactions || []
-    return (transactions || []).filter(tx => {
+    if (!start) return transactions
+    return transactions.filter(tx => {
       const date = new Date(tx.order_time)
       return date >= start && date <= end
     })
@@ -49,7 +42,7 @@ export default function StoresPage() {
   // 门店统计
   const storeStats = useMemo(() => {
     return storesWithStatus.map(store => {
-      const storeTx = (filteredTransactions || []).filter(t => t.store_id === store.id && t.status === '已完成')
+      const storeTx = filteredTransactions.filter(t => t.store_id === store.id && t.status === '已完成')
       const totalRevenue = storeTx.reduce((sum, t) => sum + t.final_amount, 0)
       const totalProfit = storeTx.reduce((sum, t) => sum + t.profit, 0)
       const orderCount = storeTx.length
@@ -91,7 +84,7 @@ export default function StoresPage() {
   const selectedStoreData = useMemo(() => {
     if (!selectedStore) return null
     const store = storesWithStatus.find(s => s.id === selectedStore)
-    const storeTx = (filteredTransactions || []).filter(t => t.store_id === selectedStore && t.status === '已完成')
+    const storeTx = filteredTransactions.filter(t => t.store_id === selectedStore && t.status === '已完成')
 
     const totalRevenue = storeTx.reduce((sum, t) => sum + t.final_amount, 0)
     const totalProfit = storeTx.reduce((sum, t) => sum + t.profit, 0)
@@ -124,7 +117,7 @@ export default function StoresPage() {
     { key: 'avgOrder', title: '客单价', render: (v) => `¥${Math.round(v)}` }
   ]
 
-  if (loading) {
+  if (loading && transactions.length === 0) {
     return (
       <div className="p-6 space-y-6">
         <h1 className="text-2xl font-bold">门店管理</h1>
@@ -205,7 +198,7 @@ export default function StoresPage() {
         {/* 分页 */}
         <div className="flex justify-between items-center mt-4">
           <span className="text-sm text-textSecondary">
-            共 {filteredStores.length} 家门店
+            共 {filteredStores.length} 家门店，第 {currentPage}/{totalPages || 1} 页
           </span>
           <div className="flex gap-2">
             <button

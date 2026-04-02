@@ -4,9 +4,12 @@ import Badge from '../../components/ui/Badge'
 import RefreshButton from '../../components/ui/RefreshButton'
 import { useData } from '../../context/DataContext'
 import { batchGenerateTransactions, initHistoryData } from '../../lib/api'
+import { PRODUCTS, STORES } from '../../lib/constants'
 
 export default function DataManagementPage() {
-  const { loading, stats, health, products, stores, refresh } = useData()
+  const { loading, stats, health, refresh } = useData()
+  const products = PRODUCTS
+  const stores = STORES
   const [actionLoading, setActionLoading] = useState(null)
   const [message, setMessage] = useState(null)
 
