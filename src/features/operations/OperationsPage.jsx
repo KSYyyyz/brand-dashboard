@@ -49,40 +49,54 @@ export default function OperationsPage() {
     })
 
     // 模拟投流数据（基于 GMV 和平台）
+    // 闻献是高端品牌，广告投放约占GMV的8-15%
     const adsPlatforms = ['抖音千川', '腾讯广告', '小红书']
     const adsData = adsPlatforms.map((platform, i) => {
-      const gmvRatio = i === 0 ? 0.4 : i === 1 ? 0.35 : 0.25
-      const gmv = totalGMV * gmvRatio
-      const spend = Math.round(gmv / (2 + Math.random()))
-      const impressions = Math.round(spend * 20)
-      const clicks = Math.round(impressions * 0.15)
-      const conversions = Math.round(clicks * 0.08)
+      const gmvRatio = i === 0 ? 0.45 : i === 1 ? 0.30 : 0.25
+      const platformGMV = platformGMV[platform] || (totalGMV * gmvRatio)
+      // 高端品牌投流ROI约1.8-2.5
+      const roi = (1.8 + Math.random() * 0.7).toFixed(2)
+      const spend = Math.round(platformGMV / parseFloat(roi))
+      const cpm = 80 + Math.round(Math.random() * 40) // CPM 80-120
+      const impressions = Math.round((spend / platformGMV) * 1000000)
+      const ctr = (0.02 + Math.random() * 0.01).toFixed(2) // 点击率2-3%
+      const clicks = Math.round(impressions * parseFloat(ctr))
+      const cvr = (0.03 + Math.random() * 0.02).toFixed(2) // 转化率3-5%
+      const conversions = Math.round(clicks * parseFloat(cvr))
       return {
         platform,
         spend,
         impressions,
         clicks,
         conversions,
-        gmv: Math.round(conversions * 1500),
-        roi: spend > 0 ? (gmv / spend).toFixed(2) : '0'
+        gmv: platformGMV,
+        roi
       }
     })
 
-    // 模拟内容数据
+    // 模拟内容数据（基于订单量）
     const contentPlatforms = ['抖音', '小红书', '微信视频号']
     const contentData = contentPlatforms.map(platform => {
-      const baseViews = platform === '抖音' ? 80000 : platform === '小红书' ? 50000 : 30000
-      const views = Math.round(baseViews * (totalOrders / 100) * (0.8 + Math.random() * 0.4))
-      const likes = Math.round(views * 0.1)
-      const comments = Math.round(likes * 0.15)
-      const shares = Math.round(likes * 0.08)
+      // 基础播放量根据平台特性
+      const baseViews = platform === '抖音' ? 50000 : platform === '小红书' ? 30000 : 15000
+      // 实际播放与订单量挂钩
+      const views = Math.max(1000, Math.round(baseViews * (totalOrders / 50) * (0.8 + Math.random() * 0.4)))
+      // 点赞率约3-8%
+      const likeRate = 0.03 + Math.random() * 0.05
+      const likes = Math.round(views * likeRate)
+      // 评论率约1-2%
+      const comments = Math.round(views * (0.01 + Math.random() * 0.01))
+      // 分享率约0.5-1.5%
+      const shares = Math.round(views * (0.005 + Math.random() * 0.01))
+      // 涨粉约为点赞的2-5%
+      const fans_growth = Math.round(likes * (0.02 + Math.random() * 0.03))
       return {
         platform,
         views,
         likes,
         comments,
         shares,
-        fans_growth: Math.round(likes * 0.05)
+        fans_growth
       }
     })
 
