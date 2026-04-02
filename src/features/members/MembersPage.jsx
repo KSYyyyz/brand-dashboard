@@ -37,45 +37,8 @@ export default function MembersPage() {
 
         const txs = txData.data || []
 
-        // 从交易数据推导会员列表
-        const memberMap = {}
-        MEMBER_LEVELS.forEach(level => {
-          memberMap[level] = { level, totalAmount: 0, orderCount: 0, cityMap: {} }
-        })
-
-        txs.forEach(tx => {
-          if (tx.status !== '已完成') return
-          const level = tx.member_level || '非会员'
-          if (!memberMap[level]) memberMap[level] = { level, totalAmount: 0, orderCount: 0, cityMap: {} }
-
-          memberMap[level].totalAmount += tx.final_amount
-          memberMap[level].orderCount += 1
-        })
-
-        // 生成虚拟会员数据
-        const users = MEMBER_LEVELS.flatMap(level => {
-          const data = memberMap[level]
-          const count = data.orderCount > 0 ? Math.max(1, Math.floor(data.orderCount / 3)) : 0
-          return Array.from({ length: count }, (_, i) => ({
-            id: `${level}-${i}`,
-            vip_no: level !== '非会员' ? `VIP${String(10000 + Math.floor(Math.random() * 9999)).slice(1)}` : null,
-            name: `${level}会员${i + 1}`,
-            gender: randomPick(GENDERS),
-            phone: `138${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
-            level,
-            province: '上海',
-            city: '上海',
-            occupation: randomPick(OCCUPATIONS),
-            birthday: `199${Math.floor(Math.random() * 9)}-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 28) + 1).padStart(2, '0')}`,
-            total_amount: Math.floor(data.totalAmount / count) || 0,
-            order_count: Math.floor(data.orderCount / count) || 0,
-            created_at: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString()
-          }))
-        })
-
         setTransactions(txs)
         setMemberStats(statsData.member_stats || [])
-        setAllUsers(users)
         setLoading(false)
       } catch (err) {
         console.error('会员数据加载失败:', err)
@@ -84,10 +47,7 @@ export default function MembersPage() {
       }
     }
     loadData()
-  }, [range])
-
-  const [allUsers, setAllUsers] = useState([])
-  const [allOrders, setAllOrders] = useState([])
+  }, [])
 
   // 根据日期范围过滤订单和用户
   const { filteredOrders, users } = useMemo(() => {
@@ -136,24 +96,6 @@ export default function MembersPage() {
     return { filteredOrders: orders, users: derivedUsers }
   }, [transactions, range])
 
-  // 根据日期范围过滤订单和用户
-  const { filteredOrders, users } = useMemo(() => {
-    const { start, end } = getDateRange(range)
-    let orders = allOrders
-    let userList = allUsers
-
-    if (start) {
-      orders = allOrders.filter(o => {
-        const date = new Date(o.order_time)
-        return date >= start && date <= end
-      })
-      const orderUserIds = new Set(orders.map(o => o.user_id))
-      userList = allUsers.filter(u => orderUserIds.has(u.id))
-    }
-
-    return { filteredOrders: orders, users: userList }
-  }, [allOrders, allUsers, range])
-
   // 会员等级统计
   const levelStats = useMemo(() => {
     return MEMBER_LEVELS.map(level => ({
@@ -164,8 +106,6 @@ export default function MembersPage() {
 
   // 会员消费等级分布
   const consumptionStats = useMemo(() => {
-    const totalAmount = users.reduce((sum, u) => sum + (u?.total_amount || 0), 0)
-    const avgAmount = users.length > 0 ? totalAmount / users.length : 0
     return [
       { name: '高消费(>1万)', value: users.filter(u => u && u.total_amount > 10000).length },
       { name: '中消费(5千-1万)', value: users.filter(u => u && u.total_amount >= 5000 && u.total_amount <= 10000).length },
@@ -219,10 +159,9 @@ export default function MembersPage() {
       <Badge variant={v === '龙涎' ? 'accent' : 'default'}>{v}</Badge>
     )},
     { key: 'occupation', title: '职业' },
-    { key: 'birthday', title: '生日' },
+    { key: 'city', title: '城市' },
     { key: 'total_amount', title: '累计消费', render: (v) => `¥${(v || 0).toLocaleString()}` },
-    { key: 'order_count', title: '订单数' },
-    { key: 'created_at', title: '注册日期', render: (v) => v ? new Date(v).toLocaleDateString() : '-' }
+    { key: 'order_count', title: '订单数' }
   ]
 
   if (loading) {
