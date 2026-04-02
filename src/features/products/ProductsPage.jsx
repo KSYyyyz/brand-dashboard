@@ -4,6 +4,7 @@ import MetricCard from '../../components/ui/MetricCard'
 import Badge from '../../components/ui/Badge'
 import Table from '../../components/ui/Table'
 import BarChartComponent from '../../components/charts/BarChart'
+import ProductDetailModal from '../../components/ui/ProductDetailModal'
 
 // 闻献品牌真实商品数据
 const PRODUCTS = [
@@ -53,6 +54,7 @@ export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState('全部')
   const [searchText, setSearchText] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+  const [selectedProduct, setSelectedProduct] = useState(null)
   const pageSize = 10
 
   // 模拟加载
@@ -191,7 +193,7 @@ export default function ProductsPage() {
           </span>
         </div>
 
-        <Table columns={columns} data={paginatedProducts} />
+        <Table columns={columns} data={paginatedProducts} onRowClick={setSelectedProduct} />
 
         {/* 分页 */}
         <div className="flex justify-between items-center mt-4">
@@ -230,6 +232,9 @@ export default function ProductsPage() {
           </div>
         </Card>
       )}
+
+      {/* 商品详情弹窗 */}
+      <ProductDetailModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />
     </div>
   )
 }

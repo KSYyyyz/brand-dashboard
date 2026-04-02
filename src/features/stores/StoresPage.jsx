@@ -3,7 +3,7 @@ import Card from '../../components/ui/Card'
 import MetricCard from '../../components/ui/MetricCard'
 import Table from '../../components/ui/Table'
 import BarChartComponent from '../../components/charts/BarChart'
-import TrendChart from '../../components/charts/TrendChart'
+import StoreDetailModal from '../../components/ui/StoreDetailModal'
 import { generateAllMockData } from '../../lib/mock-generator'
 
 export default function StoresPage() {
@@ -14,7 +14,6 @@ export default function StoresPage() {
   const [selectedStore, setSelectedStore] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [error, setError] = useState(null)
-  const [chartDays, setChartDays] = useState(14)
   const pageSize = 25
 
   useEffect(() => {
@@ -80,7 +79,6 @@ export default function StoresPage() {
     if (!selectedStore) return null
     const store = stores.find(s => s.id === selectedStore)
     const sales = storeSales.filter(s => s.store_id === selectedStore)
-    const recentSales = sales.slice(-chartDays)
 
     const totalRevenue = sales.reduce((sum, s) => sum + Number(s.revenue), 0)
     const totalProfit = sales.reduce((sum, s) => sum + Number(s.profit), 0)
@@ -91,23 +89,9 @@ export default function StoresPage() {
     return {
       store,
       sales,
-      recentSales,
       stats: { totalRevenue, totalProfit, totalCustomers, avgOrder, profitRate }
     }
-  }, [selectedStore, stores, storeSales, chartDays])
-
-  // 销售趋势数据
-  const salesTrendData = useMemo(() => {
-    if (!selectedStoreData?.recentSales) return []
-    return selectedStoreData.recentSales
-      .map(s => ({
-        date: s.sale_date,
-        revenue: Number(s.revenue),
-        profit: Number(s.profit),
-        customers: s.customer_count
-      }))
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
-  }, [selectedStoreData])
+  }, [selectedStore, stores, storeSales])
 
   const columns = [
     { key: 'store_code', title: '门店编码', render: (v) => <span className="text-accent">{v}</span> },
@@ -122,15 +106,6 @@ export default function StoresPage() {
     { key: 'totalRevenue', title: '销售额', render: (v) => `¥${(v / 10000).toFixed(1)}万` },
     { key: 'totalCustomers', title: '客户数' },
     { key: 'avgOrder', title: '客单价', render: (v) => `¥${Math.round(v)}` }
-  ]
-
-  // 门店详细数据表格列
-  const detailColumns = [
-    { key: 'sale_date', title: '日期' },
-    { key: 'revenue', title: '销售额', render: (v) => `¥${Number(v).toLocaleString()}` },
-    { key: 'profit', title: '利润', render: (v) => `¥${Number(v).toLocaleString()}` },
-    { key: 'customer_count', title: '客流量' },
-    { key: 'avg_order', title: '客单价', render: (v) => `¥${Number(v).toLocaleString()}` }
   ]
 
   if (loading) {
@@ -237,81 +212,13 @@ export default function StoresPage() {
         </div>
       </Card>
 
-      {/* 单店详细分析 */}
+      {/* 门店详情弹窗 */}
       {selectedStoreData && (
-        <>
-          <Card title={`门店详情 - ${selectedStoreData.store?.store_name}`}>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
-              <div className="bg-primary p-3 rounded-lg">
-                <div className="text-textSecondary text-xs">累计销售额</div>
-                <div className="text-lg font-bold text-accent">¥{(selectedStoreData.stats.totalRevenue / 10000).toFixed(1)}万</div>
-              </div>
-              <div className="bg-primary p-3 rounded-lg">
-                <div className="text-textSecondary text-xs">累计利润</div>
-                <div className="text-lg font-bold text-success">¥{(selectedStoreData.stats.totalProfit / 10000).toFixed(1)}万</div>
-              </div>
-              <div className="bg-primary p-3 rounded-lg">
-                <div className="text-textSecondary text-xs">利润率</div>
-                <div className="text-lg font-bold">{selectedStoreData.stats.profitRate.toFixed(1)}%</div>
-              </div>
-              <div className="bg-primary p-3 rounded-lg">
-                <div className="text-textSecondary text-xs">总客流量</div>
-                <div className="text-lg font-bold">{selectedStoreData.stats.totalCustomers}</div>
-              </div>
-              <div className="bg-primary p-3 rounded-lg">
-                <div className="text-textSecondary text-xs">平均客单价</div>
-                <div className="text-lg font-bold">¥{Math.round(selectedStoreData.stats.avgOrder)}</div>
-              </div>
-            </div>
-
-            {/* 门店信息 */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-              <div><span className="text-textSecondary">编码：</span>{selectedStoreData.store?.store_code}</div>
-              <div><span className="text-textSecondary">地区：</span>{selectedStoreData.store?.province} {selectedStoreData.store?.city}</div>
-              <div><span className="text-textSecondary">员工：</span>{selectedStoreData.store?.staff_count}人</div>
-              <div><span className="text-textSecondary">开业：</span>{selectedStoreData.store?.opening_date}</div>
-            </div>
-          </Card>
-
-          {/* 销售趋势 */}
-          <Card title="销售趋势">
-            <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => setChartDays(7)}
-                className={`px-3 py-1 rounded text-sm ${chartDays === 7 ? 'bg-accent text-primary' : 'bg-secondary'}`}
-              >
-                近7天
-              </button>
-              <button
-                onClick={() => setChartDays(14)}
-                className={`px-3 py-1 rounded text-sm ${chartDays === 14 ? 'bg-accent text-primary' : 'bg-secondary'}`}
-              >
-                近14天
-              </button>
-              <button
-                onClick={() => setChartDays(30)}
-                className={`px-3 py-1 rounded text-sm ${chartDays === 30 ? 'bg-accent text-primary' : 'bg-secondary'}`}
-              >
-                近30天
-              </button>
-            </div>
-            <TrendChart data={salesTrendData} dataKey="revenue" height={250} />
-          </Card>
-
-          {/* 销售明细表格 */}
-          <Card title="每日销售明细">
-            <Table
-              columns={detailColumns}
-              data={salesTrendData.slice().reverse().map(s => ({
-                ...s,
-                sale_date: s.date,
-                revenue: s.revenue,
-                profit: s.profit,
-                customer_count: s.customers
-              }))}
-            />
-          </Card>
-        </>
+        <StoreDetailModal
+          store={selectedStoreData.store}
+          sales={selectedStoreData.sales}
+          onClose={() => setSelectedStore(null)}
+        />
       )}
     </div>
   )
