@@ -7,12 +7,12 @@ export default function ProductDetailModal({ product, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* 遮罩 */}
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* 弹窗 */}
-      <div className="relative bg-primary border border-border rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[80vh] overflow-auto">
+      <div className="relative bg-primary border border-border rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[80vh] overflow-hidden flex flex-col">
         {/* 头部 */}
-        <div className="sticky top-0 bg-primary border-b border-border px-6 py-4 flex items-center justify-between">
+        <div className="shrink-0 bg-primary border-b border-border px-6 py-4 flex items-center justify-between">
           <div>
             <span className="text-textSecondary text-sm">商品详情</span>
             <h2 className="text-xl font-bold mt-1">{product.name}</h2>
@@ -26,7 +26,7 @@ export default function ProductDetailModal({ product, onClose }) {
         </div>
 
         {/* 内容 */}
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
           {/* 基本信息 */}
           <div>
             <h3 className="text-sm font-medium text-textSecondary mb-3">基本信息</h3>

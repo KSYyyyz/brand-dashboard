@@ -28,10 +28,10 @@ export default function StoreDetailModal({ store, sales, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* 遮罩 */}
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* 弹窗 */}
-      <div className="relative bg-primary border border-border rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-auto">
+      <div className="relative bg-primary border border-border rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-hidden flex flex-col">
         {/* 头部 */}
         <div className="sticky top-0 bg-primary border-b border-border px-6 py-4 flex items-center justify-between z-10">
           <div>
@@ -52,7 +52,7 @@ export default function StoreDetailModal({ store, sales, onClose }) {
         </div>
 
         {/* 内容 */}
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
           {/* 核心指标 */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-secondary rounded-lg p-3">

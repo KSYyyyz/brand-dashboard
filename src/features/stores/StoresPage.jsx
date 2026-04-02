@@ -22,7 +22,6 @@ export default function StoresPage() {
         const mockData = generateAllMockData()
         setStores(mockData.stores || [])
         setStoreSales(mockData.storeSales || [])
-        setSelectedStore(mockData.stores[0]?.id || null)
         setLoading(false)
       } catch (err) {
         console.error('门店数据加载失败:', err)
