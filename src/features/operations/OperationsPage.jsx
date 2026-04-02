@@ -6,16 +6,18 @@ import BarChartComponent from '../../components/charts/BarChart'
 import DateRangePicker from '../../components/ui/DateRangePicker'
 import RefreshButton from '../../components/ui/RefreshButton'
 import { useData } from '../../context/DataContext'
-import { useDateRange, getDateRange } from '../../context/DateRangeContext'
+import { useDateRange, getDateRange, getPreviousDateRange } from '../../context/DateRangeContext'
 
 export default function OperationsPage() {
   const { loading, transactions, stats } = useData()
   const { range } = useDateRange()
 
-  // 根据日期范围过滤
-  const { filteredTx, adsData, contentData } = useMemo(() => {
+  // 根据日期范围过滤并计算对比
+  const { filteredTx, adsData, contentData, periodComparison } = useMemo(() => {
     const { start, end } = getDateRange(range)
+    const prevRange = getPreviousDateRange(range)
     let filtered = transactions
+    let prevFiltered = transactions
 
     if (start && end) {
       filtered = transactions.filter(tx => {
@@ -24,10 +26,20 @@ export default function OperationsPage() {
       })
     }
 
+    if (!prevRange.isAllTime && prevRange.start && prevRange.end) {
+      prevFiltered = transactions.filter(tx => {
+        const date = new Date(tx.order_time)
+        return date >= prevRange.start && date <= prevRange.end
+      })
+    }
+
     // 从交易数据派生投流数据（按城市/平台模拟）
     const completedTx = filtered.filter(t => t.status === '已完成')
+    const prevCompletedTx = prevRange.isAllTime ? [] : prevFiltered.filter(t => t.status === '已完成')
     const totalGMV = completedTx.reduce((sum, t) => sum + t.final_amount, 0)
     const totalOrders = completedTx.length
+    const prevTotalGMV = prevCompletedTx.reduce((sum, t) => sum + t.final_amount, 0)
+    const prevTotalOrders = prevCompletedTx.length
 
     // 按平台统计 GMV
     const platformGMV = {}
@@ -74,7 +86,30 @@ export default function OperationsPage() {
       }
     })
 
-    return { filteredTx: filtered, adsData, contentData }
+    // 计算对比
+    const calcChange = (current, previous) => {
+      if (prevRange.isAllTime) return null
+      if (previous === 0) return current > 0 ? 100 : 0
+      return ((current - previous) / previous * 100).toFixed(1)
+    }
+
+    const periodComparison = {
+      totalSpend: {
+        change: calcChange(adsData.reduce((sum, d) => sum + d.spend, 0), prevCompletedTx.length > 0 ? prevTotalGMV * 0.35 : 0),
+        trend: prevRange.isAllTime ? null : adsData.reduce((sum, d) => sum + d.spend, 0) >= (prevCompletedTx.length > 0 ? prevTotalGMV * 0.35 : 0) ? 'up' : 'down'
+      },
+      totalGMV: {
+        change: calcChange(totalGMV, prevTotalGMV),
+        trend: prevRange.isAllTime ? null : totalGMV >= prevTotalGMV ? 'up' : 'down'
+      },
+      roi: { change: null, trend: null },
+      totalViews: {
+        change: calcChange(contentData.reduce((sum, d) => sum + d.views, 0), prevTotalOrders > 0 ? prevTotalOrders * 50000 * 0.5 : 0),
+        trend: prevRange.isAllTime ? null : contentData.reduce((sum, d) => sum + d.views, 0) >= (prevTotalOrders > 0 ? prevTotalOrders * 50000 * 0.5 : 0) ? 'up' : 'down'
+      }
+    }
+
+    return { filteredTx: filtered, adsData, contentData, periodComparison }
   }, [transactions, range])
 
   // 投流统计汇总
@@ -122,10 +157,25 @@ export default function OperationsPage() {
 
       {/* 投流核心指标 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard title="总投放花费" value={`¥${(adsStats.totalSpend / 10000).toFixed(1)}万`} />
-        <MetricCard title="总GMV" value={`¥${(adsStats.totalGMV / 10000).toFixed(1)}万`} />
+        <MetricCard
+          title="总投放花费"
+          value={`¥${(adsStats.totalSpend / 10000).toFixed(1)}万`}
+          change={periodComparison.totalSpend.change}
+          trend={periodComparison.totalSpend.trend}
+        />
+        <MetricCard
+          title="总GMV"
+          value={`¥${(adsStats.totalGMV / 10000).toFixed(1)}万`}
+          change={periodComparison.totalGMV.change}
+          trend={periodComparison.totalGMV.trend}
+        />
         <MetricCard title="整体ROI" value={adsStats.roi} />
-        <MetricCard title="内容总播放" value={`${(adsStats.totalViews / 10000).toFixed(1)}万`} />
+        <MetricCard
+          title="内容总播放"
+          value={`${(adsStats.totalViews / 10000).toFixed(1)}万`}
+          change={periodComparison.totalViews.change}
+          trend={periodComparison.totalViews.trend}
+        />
       </div>
 
       {/* 投流效率 */}

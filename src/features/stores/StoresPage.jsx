@@ -7,7 +7,7 @@ import StoreDetailModal from '../../components/ui/StoreDetailModal'
 import DateRangePicker from '../../components/ui/DateRangePicker'
 import RefreshButton from '../../components/ui/RefreshButton'
 import { useData } from '../../context/DataContext'
-import { useDateRange, getDateRange } from '../../context/DateRangeContext'
+import { useDateRange, getDateRange, getPreviousDateRange } from '../../context/DateRangeContext'
 import { STORE_STATUS } from '../../lib/constants'
 
 export default function StoresPage() {
@@ -29,14 +29,61 @@ export default function StoresPage() {
     }))
   }, [stores])
 
-  // 根据日期范围过滤交易
-  const filteredTransactions = useMemo(() => {
+  // 根据日期范围过滤交易并计算对比
+  const { filteredTransactions, prevFilteredTransactions, periodComparison } = useMemo(() => {
     const { start, end } = getDateRange(range)
-    if (!start) return transactions
-    return transactions.filter(tx => {
-      const date = new Date(tx.order_time)
-      return date >= start && date <= end
-    })
+    const prevRange = getPreviousDateRange(range)
+    let filtered = transactions
+    let prevFiltered = transactions
+
+    if (start && end) {
+      filtered = transactions.filter(tx => {
+        const date = new Date(tx.order_time)
+        return date >= start && date <= end
+      })
+    }
+
+    if (!prevRange.isAllTime && prevRange.start && prevRange.end) {
+      prevFiltered = transactions.filter(tx => {
+        const date = new Date(tx.order_time)
+        return date >= prevRange.start && date <= prevRange.end
+      })
+    }
+
+    // 当前周期门店统计
+    const completedTx = filtered.filter(t => t.status === '已完成')
+    const totalRevenue = completedTx.reduce((sum, t) => sum + t.final_amount, 0)
+    const totalOrders = completedTx.length
+
+    // 前一周期门店统计
+    const prevCompletedTx = prevFiltered.filter(t => t.status === '已完成')
+    const prevTotalRevenue = prevCompletedTx.reduce((sum, t) => sum + t.final_amount, 0)
+    const prevTotalOrders = prevCompletedTx.length
+    const avgOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0
+    const prevAvgOrder = prevTotalOrders > 0 ? prevTotalRevenue / prevTotalOrders : 0
+
+    const calcChange = (current, previous) => {
+      if (prevRange.isAllTime) return null
+      if (previous === 0) return current > 0 ? 100 : 0
+      return ((current - previous) / previous * 100).toFixed(1)
+    }
+
+    const periodComparison = {
+      totalRevenue: {
+        change: calcChange(totalRevenue, prevTotalRevenue),
+        trend: prevRange.isAllTime ? null : totalRevenue >= prevTotalRevenue ? 'up' : 'down'
+      },
+      totalOrders: {
+        change: calcChange(totalOrders, prevTotalOrders),
+        trend: prevRange.isAllTime ? null : totalOrders >= prevTotalOrders ? 'up' : 'down'
+      },
+      avgOrder: {
+        change: calcChange(avgOrder, prevAvgOrder),
+        trend: prevRange.isAllTime ? null : avgOrder >= prevAvgOrder ? 'up' : 'down'
+      }
+    }
+
+    return { filteredTransactions: filtered, prevFilteredTransactions: prevFiltered, periodComparison }
   }, [transactions, range])
 
   // 门店统计
@@ -146,9 +193,24 @@ export default function StoresPage() {
       {/* 核心指标 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard title="门店总数" value={storesWithStatus.length} />
-        <MetricCard title="总销售额" value={`¥${(totalRevenue / 10000).toFixed(1)}万`} />
-        <MetricCard title="总订单数" value={totalOrders.toLocaleString()} />
-        <MetricCard title="平均客单价" value={`¥${Math.round(avgOrder)}`} />
+        <MetricCard
+          title="总销售额"
+          value={`¥${(totalRevenue / 10000).toFixed(1)}万`}
+          change={periodComparison.totalRevenue.change}
+          trend={periodComparison.totalRevenue.trend}
+        />
+        <MetricCard
+          title="总订单数"
+          value={totalOrders.toLocaleString()}
+          change={periodComparison.totalOrders.change}
+          trend={periodComparison.totalOrders.trend}
+        />
+        <MetricCard
+          title="平均客单价"
+          value={`¥${Math.round(avgOrder)}`}
+          change={periodComparison.avgOrder.change}
+          trend={periodComparison.avgOrder.trend}
+        />
       </div>
 
       {/* 门店排名 */}
