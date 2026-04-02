@@ -3,20 +3,23 @@ import Card from '../../components/ui/Card'
 import MetricCard from '../../components/ui/MetricCard'
 import TrendChart from '../../components/charts/TrendChart'
 import BarChartComponent from '../../components/charts/BarChart'
+import DateRangePicker from '../../components/ui/DateRangePicker'
+import { useDateRange, getDateRange } from '../../context/DateRangeContext'
 import { generateAllMockData } from '../../lib/mock-generator'
 
 export default function OperationsPage() {
   const [loading, setLoading] = useState(true)
-  const [adsData, setAdsData] = useState([])
-  const [contentData, setContentData] = useState([])
+  const [allAdsData, setAllAdsData] = useState([])
+  const [allContentData, setAllContentData] = useState([])
   const [error, setError] = useState(null)
+  const { range } = useDateRange()
 
   useEffect(() => {
     setTimeout(() => {
       try {
         const mockData = generateAllMockData()
-        setAdsData(mockData.adsData || [])
-        setContentData(mockData.contentData || [])
+        setAllAdsData(mockData.adsData || [])
+        setAllContentData(mockData.contentData || [])
         setLoading(false)
       } catch (err) {
         console.error('运营数据加载失败:', err)
@@ -25,6 +28,24 @@ export default function OperationsPage() {
       }
     }, 500)
   }, [])
+
+  // 根据日期范围过滤数据
+  const { adsData, contentData } = useMemo(() => {
+    const { start, end } = getDateRange(range)
+
+    const filterByDate = (data, dateField) => {
+      if (!start) return data
+      return data.filter(d => {
+        const date = new Date(d[dateField])
+        return date >= start && date <= end
+      })
+    }
+
+    return {
+      adsData: filterByDate(allAdsData, 'report_date'),
+      contentData: filterByDate(allContentData, 'publish_date')
+    }
+  }, [allAdsData, allContentData, range])
 
   // 投流统计
   const adsStats = useMemo(() => {
@@ -40,12 +61,12 @@ export default function OperationsPage() {
         platform,
         spend: totalSpend,
         gmv: totalGMV,
-        roi: totalGMV / totalSpend,
+        roi: totalSpend > 0 ? totalGMV / totalSpend : 0,
         impressions: totalImpressions,
         clicks: totalClicks,
         conversions: totalConversions,
-        ctr: (totalClicks / totalImpressions * 100).toFixed(2),
-        cvr: (totalConversions / totalClicks * 100).toFixed(2)
+        ctr: totalImpressions > 0 ? (totalClicks / totalImpressions * 100).toFixed(2) : '0',
+        cvr: totalClicks > 0 ? (totalConversions / totalClicks * 100).toFixed(2) : '0'
       }
     })
   }, [adsData])
@@ -77,7 +98,6 @@ export default function OperationsPage() {
     return Object.entries(grouped)
       .map(([date, value]) => ({ date, value }))
       .sort((a, b) => new Date(a.date) - new Date(b.date))
-      .slice(-30)
   }, [adsData])
 
   if (loading) {
@@ -108,13 +128,17 @@ export default function OperationsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">运营分析</h1>
+      {/* 标题栏 */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">运营分析</h1>
+        <DateRangePicker />
+      </div>
 
       {/* 投流核心指标 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard title="总投放花费" value={`¥${(totalSpend / 10000).toFixed(1)}万`} />
         <MetricCard title="总GMV" value={`¥${(totalGMV / 10000).toFixed(1)}万`} />
-        <MetricCard title="整体ROI" value={totalGMV / totalSpend > 0 ? (totalGMV / totalSpend).toFixed(2) : '0'} />
+        <MetricCard title="整体ROI" value={totalSpend > 0 ? (totalGMV / totalSpend).toFixed(2) : '0'} />
         <MetricCard title="内容总播放" value={(totalViews / 10000).toFixed(1) + '万'} />
       </div>
 
@@ -200,7 +224,7 @@ export default function OperationsPage() {
             </thead>
             <tbody>
               {contentStats.map(stat => {
-                const interactionRate = ((stat.likes + stat.comments + stat.shares) / stat.views * 100).toFixed(2)
+                const interactionRate = stat.views > 0 ? ((stat.likes + stat.comments + stat.shares) / stat.views * 100).toFixed(2) : '0'
                 return (
                   <tr key={stat.platform} className="border-b border-border/50">
                     <td className="py-3 px-4 text-accent">{stat.platform}</td>

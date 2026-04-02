@@ -6,7 +6,7 @@ import PieChartComponent from '../../components/charts/PieChart'
 import BarChartComponent from '../../components/charts/BarChart'
 import { generateAllMockData } from '../../lib/mock-generator'
 
-const MEMBER_LEVELS = ['龙涎', '沉香', '檀木', '麝香', '非会员']
+const MEMBER_LEVELS = ['龙涎', '沉香', '檀木', '麝香']
 
 export default function UsersPage() {
   const [loading, setLoading] = useState(true)
@@ -40,7 +40,6 @@ export default function UsersPage() {
     }))
 
     const user分层 = [
-      { name: '潜客', value: userList.filter(u => u && u.order_count === 0).length },
       { name: '首单客', value: userList.filter(u => u && u.order_count === 1).length },
       { name: '复购客', value: userList.filter(u => u && u.order_count >= 2 && u.order_count < 5).length },
       { name: '忠诚客', value: userList.filter(u => u && u.order_count >= 5).length }
@@ -93,11 +92,15 @@ export default function UsersPage() {
   const columns = [
     { key: 'vip_no', title: '会员编号', render: (v) => <span className="text-accent">{v || '-'}</span> },
     { key: 'name', title: '姓名' },
+    { key: 'gender', title: '性别' },
     { key: 'phone', title: '手机号' },
     { key: 'level', title: '等级', render: (v) => <Badge variant="accent">{v || '-'}</Badge> },
+    { key: 'occupation', title: '职业' },
+    { key: 'birthday', title: '生日' },
     { key: 'province', title: '省份' },
     { key: 'order_count', title: '订单数' },
-    { key: 'total_amount', title: '累计消费', render: (v) => `¥${(v || 0).toLocaleString()}` }
+    { key: 'total_amount', title: '累计消费', render: (v) => `¥${(v || 0).toLocaleString()}` },
+    { key: 'created_at', title: '注册日期', render: (v) => v ? new Date(v).toLocaleDateString() : '-' }
   ]
 
   if (loading) {

@@ -1,5 +1,5 @@
 // 闻献品牌常量
-const MEMBER_LEVELS = ['龙涎', '沉香', '檀木', '麝香', '非会员']
+const MEMBER_LEVELS = ['龙涎', '沉香', '檀木', '麝香']
 const PLATFORMS = ['天猫', '淘宝', '京东', '抖音', '微信小程序', '线下门店']
 const ORDER_STATUS = ['待支付', '已支付', '已发货', '已完成', '已退款']
 const PROVINCES = ['北京', '上海', '广东', '浙江', '江苏', '四川', '湖北', '湖南', '福建', '山东']
@@ -10,12 +10,19 @@ const CITIES = {
   '福建': ['厦门', '福州', '泉州'], '山东': ['济南', '青岛']
 }
 const OCCUPATIONS = ['企业主', '高管', '白领', '自由职业', '公务员', '医生', '律师', '设计师']
+const GENDERS = ['男', '女']
 
 // 工具函数
 const random = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)]
 const generatePhone = () => `138${random(10000000, 99999999)}`
 const generateOrderNo = () => `WX${Date.now()}${random(1000, 9999)}`
+const generateBirthday = () => {
+  const year = random(1970, 2000)
+  const month = String(random(1, 12)).padStart(2, '0')
+  const day = String(random(1, 28)).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
 // 生成用户数据
 export function generateUsers(count = 500) {
@@ -26,30 +33,32 @@ export function generateUsers(count = 500) {
     const level = pick(MEMBER_LEVELS)
     const province = pick(PROVINCES)
     const city = pick(CITIES[province])
-    const orderCount = level === '非会员' ? 0 : random(1, 20)
+    const orderCount = random(1, 20)
     const totalAmount = orderCount * random(500, 3000)
+    const gender = pick(GENDERS)
 
+    // 注册日期在1-365天前
     const createdAt = new Date(now - random(1, 365) * 24 * 60 * 60 * 1000)
-    const firstOrderTime = orderCount > 0
-      ? new Date(createdAt.getTime() + random(1, 30) * 24 * 60 * 60 * 1000)
-      : null
-    const lastOrderTime = orderCount > 1
-      ? new Date(firstOrderTime.getTime() + random(1, 180) * 24 * 60 * 60 * 1000)
-      : firstOrderTime
+    // 首单日期在注册后1-30天
+    const firstOrderTime = new Date(createdAt.getTime() + random(1, 30) * 24 * 60 * 60 * 1000)
+    // 末单日期在首单后1-180天
+    const lastOrderTime = new Date(firstOrderTime.getTime() + random(1, 180) * 24 * 60 * 60 * 1000)
 
     users.push({
       id: i,
       vip_no: `VIP${String(10000 + i).slice(1)}`,
       name: `用户${i}`,
       phone: generatePhone(),
+      gender,
       level,
       province,
       city,
       occupation: pick(OCCUPATIONS),
+      birthday: generateBirthday(),
       total_amount: totalAmount,
       order_count: orderCount,
-      first_order_time: firstOrderTime?.toISOString() || null,
-      last_order_time: lastOrderTime?.toISOString() || null,
+      first_order_time: firstOrderTime.toISOString(),
+      last_order_time: lastOrderTime.toISOString(),
       created_at: createdAt.toISOString()
     })
   }
@@ -57,35 +66,41 @@ export function generateUsers(count = 500) {
   return users
 }
 
-// 生成订单数据
+// 生成订单数据 - 确保30天内有足够订单
 export function generateOrders(users, count = 1500) {
   const orders = []
   const now = new Date()
   let orderId = 1
 
-  for (let i = 0; i < count; i++) {
-    const user = pick(users.filter(u => u.order_count > 0))
-    if (!user) continue
+  // 将订单分配到最近180天内，每天约8-9个订单
+  for (let d = 0; d < 180; d++) {
+    const ordersPerDay = d < 30 ? random(8, 12) : random(3, 8) // 近30天订单更多
+    const baseDate = new Date(now - d * 24 * 60 * 60 * 1000)
 
-    const orderTime = user.first_order_time
-      ? new Date(new Date(user.first_order_time).getTime() + random(0, 180) * 24 * 60 * 60 * 1000)
-      : new Date(now - random(1, 180) * 24 * 60 * 60 * 1000)
+    for (let j = 0; j < ordersPerDay && orders.length < count; j++) {
+      const user = pick(users.filter(u => u.order_count > 0))
+      if (!user) continue
 
-    const status = orderTime > new Date(now - 7 * 24 * 60 * 60 * 1000)
-      ? pick(['待支付', '已支付', '已发货', '已完成'])
-      : pick(ORDER_STATUS)
+      // 订单时间在该天内的随机时刻
+      const orderTime = new Date(baseDate.getTime() + random(0, 24 * 60 * 60 * 1000))
 
-    orders.push({
-      id: orderId++,
-      order_no: generateOrderNo(),
-      user_id: user.id,
-      platform: pick(PLATFORMS),
-      amount: random(500, 3000),
-      status,
-      order_time: orderTime.toISOString(),
-      pay_time: status !== '待支付' ? new Date(orderTime.getTime() + random(1, 60) * 60 * 1000).toISOString() : null,
-      created_at: orderTime.toISOString()
-    })
+      const isRecent = orderTime > new Date(now - 7 * 24 * 60 * 60 * 1000)
+      const status = isRecent
+        ? pick(['待支付', '已支付', '已发货', '已完成'])
+        : pick(ORDER_STATUS)
+
+      orders.push({
+        id: orderId++,
+        order_no: generateOrderNo(),
+        user_id: user.id,
+        platform: pick(PLATFORMS),
+        amount: random(500, 3000),
+        status,
+        order_time: orderTime.toISOString(),
+        pay_time: status !== '待支付' ? new Date(orderTime.getTime() + random(1, 60) * 60 * 1000).toISOString() : null,
+        created_at: orderTime.toISOString()
+      })
+    }
   }
 
   return orders
@@ -255,7 +270,7 @@ export function generateContentData(days = 30) {
 export function generateAllMockData() {
   const users = generateUsers(500)
   const orders = generateOrders(users, 1500)
-  const stores = generateStores(10)
+  const stores = generateStores(25)
   const storeSales = generateStoreSales(stores, 30)
   const adsData = generateAdsData(30)
   const contentData = generateContentData(30)

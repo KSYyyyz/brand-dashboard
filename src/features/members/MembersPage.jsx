@@ -4,25 +4,28 @@ import MetricCard from '../../components/ui/MetricCard'
 import Badge from '../../components/ui/Badge'
 import Table from '../../components/ui/Table'
 import PieChartComponent from '../../components/charts/PieChart'
+import DateRangePicker from '../../components/ui/DateRangePicker'
+import { useDateRange, getDateRange } from '../../context/DateRangeContext'
 import { generateAllMockData } from '../../lib/mock-generator'
 
-const MEMBER_LEVELS = ['龙涎', '沉香', '檀木', '麝香', '非会员']
+const MEMBER_LEVELS = ['龙涎', '沉香', '檀木', '麝香']
 
 export default function MembersPage() {
   const [loading, setLoading] = useState(true)
-  const [users, setUsers] = useState([])
-  const [orders, setOrders] = useState([])
+  const [allUsers, setAllUsers] = useState([])
+  const [allOrders, setAllOrders] = useState([])
   const [error, setError] = useState(null)
   const [selectedLevel, setSelectedLevel] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+  const { range } = useDateRange()
   const pageSize = 10
 
   useEffect(() => {
     setTimeout(() => {
       try {
         const mockData = generateAllMockData()
-        setUsers(mockData.users || [])
-        setOrders(mockData.orders || [])
+        setAllUsers(mockData.users || [])
+        setAllOrders(mockData.orders || [])
         setLoading(false)
       } catch (err) {
         console.error('会员数据加载失败:', err)
@@ -32,33 +35,48 @@ export default function MembersPage() {
     }, 500)
   }, [])
 
+  // 根据日期范围过滤订单和用户
+  const { filteredOrders, users } = useMemo(() => {
+    const { start, end } = getDateRange(range)
+    let orders = allOrders
+    let userList = allUsers
+
+    if (start) {
+      orders = allOrders.filter(o => {
+        const date = new Date(o.order_time)
+        return date >= start && date <= end
+      })
+      const orderUserIds = new Set(orders.map(o => o.user_id))
+      userList = allUsers.filter(u => orderUserIds.has(u.id))
+    }
+
+    return { filteredOrders: orders, users: userList }
+  }, [allOrders, allUsers, range])
+
   // 会员等级统计
   const levelStats = useMemo(() => {
-    const userList = users || []
     return MEMBER_LEVELS.map(level => ({
       name: level,
-      value: userList.filter(u => u && u.level === level).length
+      value: users.filter(u => u && u.level === level).length
     }))
   }, [users])
 
   // 会员消费等级分布
   const consumptionStats = useMemo(() => {
-    const userList = users || []
     return [
-      { name: '高消费(>1万)', value: userList.filter(u => u && u.total_amount > 10000).length },
-      { name: '中消费(5千-1万)', value: userList.filter(u => u && u.total_amount >= 5000 && u.total_amount <= 10000).length },
-      { name: '低消费(<5千)', value: userList.filter(u => u && u.total_amount < 5000).length }
+      { name: '高消费(>1万)', value: users.filter(u => u && u.total_amount > 10000).length },
+      { name: '中消费(5千-1万)', value: users.filter(u => u && u.total_amount >= 5000 && u.total_amount <= 10000).length },
+      { name: '低消费(<5千)', value: users.filter(u => u && u.total_amount < 5000).length }
     ]
   }, [users])
 
   // 会员状态统计
   const statusStats = useMemo(() => {
-    const userList = users || []
     const now = new Date()
     const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000)
 
-    const active = userList.filter(u => u && u.last_order_time && new Date(u.last_order_time) > thirtyDaysAgo).length
-    const inactive = userList.length - active
+    const active = users.filter(u => u && u.last_order_time && new Date(u.last_order_time) > thirtyDaysAgo).length
+    const inactive = users.length - active
 
     return [
       { name: '活跃会员', value: active },
@@ -68,7 +86,7 @@ export default function MembersPage() {
 
   // 筛选后的会员
   const filteredMembers = useMemo(() => {
-    let filtered = (users || []).filter(u => u && u.level)
+    let filtered = users.filter(u => u && u.level)
     if (selectedLevel) {
       filtered = filtered.filter(u => u.level === selectedLevel)
     }
@@ -87,20 +105,22 @@ export default function MembersPage() {
     '龙涎': { threshold: '累计消费满10万', discount: '8折', point: '2倍积分', exclusive: '专属顾问服务' },
     '沉香': { threshold: '累计消费满5万', discount: '8.5折', point: '1.5倍积分', exclusive: '新品优先购买' },
     '檀木': { threshold: '累计消费满2万', discount: '9折', point: '1.2倍积分', exclusive: '生日专属礼遇' },
-    '麝香': { threshold: '累计消费满5千', discount: '9.5折', point: '1倍积分', exclusive: '会员日活动' },
-    '非会员': { threshold: '未消费', discount: '无', point: '无', exclusive: '无' }
+    '麝香': { threshold: '累计消费满5千', discount: '9.5折', point: '1倍积分', exclusive: '会员日活动' }
   }
 
   const columns = [
     { key: 'vip_no', title: '会员编号', render: (v) => <span className="text-accent font-mono">{v}</span> },
     { key: 'name', title: '姓名' },
+    { key: 'gender', title: '性别' },
     { key: 'phone', title: '手机号' },
     { key: 'level', title: '等级', render: (v) => (
       <Badge variant={v === '龙涎' ? 'accent' : 'default'}>{v}</Badge>
     )},
+    { key: 'occupation', title: '职业' },
+    { key: 'birthday', title: '生日' },
     { key: 'total_amount', title: '累计消费', render: (v) => `¥${(v || 0).toLocaleString()}` },
     { key: 'order_count', title: '订单数' },
-    { key: 'last_order_time', title: '最近购买', render: (v) => v ? new Date(v).toLocaleDateString() : '-' }
+    { key: 'created_at', title: '注册日期', render: (v) => v ? new Date(v).toLocaleDateString() : '-' }
   ]
 
   if (loading) {
@@ -131,14 +151,18 @@ export default function MembersPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">会员管理</h1>
+      {/* 标题栏 */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">会员管理</h1>
+        <DateRangePicker />
+      </div>
 
       {/* 核心指标 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard title="会员总数" value={totalMembers} />
-        <MetricCard title="活跃会员" value={activeMembers} change={`${(activeMembers / totalMembers * 100).toFixed(0)}%`} />
+        <MetricCard title="活跃会员" value={activeMembers} change={`${totalMembers > 0 ? (activeMembers / totalMembers * 100).toFixed(0) : 0}%`} />
         <MetricCard title="会员总消费" value={`¥${(totalConsumption / 10000).toFixed(0)}万`} />
-        <MetricCard title="平均消费" value={`¥${Math.round(totalConsumption / totalMembers)}`} />
+        <MetricCard title="平均消费" value={`¥${totalMembers > 0 ? Math.round(totalConsumption / totalMembers) : 0}`} />
       </div>
 
       {/* 会员分布 */}
