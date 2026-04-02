@@ -5,7 +5,72 @@ import TrendChart from '../../components/charts/TrendChart'
 import BarChartComponent from '../../components/charts/BarChart'
 import DateRangePicker from '../../components/ui/DateRangePicker'
 import { useDateRange, getDateRange } from '../../context/DateRangeContext'
-import { generateAllMockData } from '../../lib/mock-generator'
+import { fetchDailyStats, fetchStats } from '../../lib/api'
+
+const ADS_PLATFORMS = ['抖音千川', '腾讯广告', '小红书']
+const CONTENT_PLATFORMS = ['抖音', '小红书', '微信视频号']
+
+function generateMockAdsData(days = 30) {
+  const data = []
+  let id = 1
+  const now = new Date()
+
+  for (const platform of ADS_PLATFORMS) {
+    for (let d = 0; d < days; d++) {
+      const reportDate = new Date(now - d * 24 * 60 * 60 * 1000)
+      const spend = Math.floor(5000 + Math.random() * 15000)
+      const impressions = Math.floor(100000 + Math.random() * 400000)
+      const clicks = Math.floor(impressions * (0.1 + Math.random() * 0.2))
+      const conversions = Math.floor(clicks * (0.05 + Math.random() * 0.1))
+      const gmv = conversions * Math.floor(500 + Math.random() * 1500)
+
+      data.push({
+        id: id++,
+        platform,
+        campaign: `${platform}品牌推广`,
+        spend,
+        impressions,
+        clicks,
+        conversions,
+        gmv,
+        roi: Math.round(gmv / spend * 100) / 100,
+        report_date: reportDate.toISOString().split('T')[0]
+      })
+    }
+  }
+  return data
+}
+
+function generateMockContentData(days = 30) {
+  const data = []
+  const contentTypes = ['产品种草', '品牌故事', 'KOL合作', '用户测评']
+  let id = 1
+  const now = new Date()
+
+  for (const platform of CONTENT_PLATFORMS) {
+    for (let d = 0; d < days; d++) {
+      const publishDate = new Date(now - d * 24 * 60 * 60 * 1000)
+      const views = Math.floor(10000 + Math.random() * 90000)
+      const likes = Math.floor(views * (0.05 + Math.random() * 0.15))
+      const comments = Math.floor(likes * (0.1 + Math.random() * 0.2))
+      const shares = Math.floor(likes * (0.05 + Math.random() * 0.1))
+
+      data.push({
+        id: id++,
+        platform,
+        content_type: contentTypes[Math.floor(Math.random() * contentTypes.length)],
+        title: `${platform}内容笔记${d + 1}`,
+        views,
+        likes,
+        comments,
+        shares,
+        fans_growth: Math.floor(50 + Math.random() * 450),
+        publish_date: publishDate.toISOString().split('T')[0]
+      })
+    }
+  }
+  return data
+}
 
 export default function OperationsPage() {
   const [loading, setLoading] = useState(true)
@@ -17,16 +82,18 @@ export default function OperationsPage() {
   useEffect(() => {
     setTimeout(() => {
       try {
-        const mockData = generateAllMockData()
-        setAllAdsData(mockData.adsData || [])
-        setAllContentData(mockData.contentData || [])
+        // 生成模拟投流和内容数据
+        const adsData = generateMockAdsData(30)
+        const contentData = generateMockContentData(30)
+        setAllAdsData(adsData)
+        setAllContentData(contentData)
         setLoading(false)
       } catch (err) {
         console.error('运营数据加载失败:', err)
         setError(err.message)
         setLoading(false)
       }
-    }, 500)
+    }, 300)
   }, [])
 
   // 根据日期范围过滤数据

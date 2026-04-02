@@ -4,60 +4,122 @@ import Badge from '../../components/ui/Badge'
 import Table from '../../components/ui/Table'
 import PieChartComponent from '../../components/charts/PieChart'
 import BarChartComponent from '../../components/charts/BarChart'
-import { generateAllMockData } from '../../lib/mock-generator'
+import { fetchTransactions, fetchStats } from '../../lib/api'
 
 const MEMBER_LEVELS = ['龙涎', '沉香', '檀木', '麝香', '非会员']
+const GENDERS = ['男', '女']
+const OCCUPATIONS = ['企业主', '高管', '白领', '自由职业', '公务员', '医生', '律师', '设计师']
+
+function randomPick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
 
 export default function UsersPage() {
   const [loading, setLoading] = useState(true)
-  const [users, setUsers] = useState([])
+  const [transactions, setTransactions] = useState([])
+  const [memberStats, setMemberStats] = useState([])
   const [error, setError] = useState(null)
-  const [filter, setFilter] = useState({ level: '', province: '', search: '' })
+  const [filter, setFilter] = useState({ level: '', city: '', search: '' })
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 10
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    async function loadData() {
       try {
-        const mockData = generateAllMockData()
-        setUsers(mockData.users || [])
+        setLoading(true)
+        const [txData, statsData] = await Promise.all([
+          fetchTransactions({ limit: 500 }),
+          fetchStats()
+        ])
+
+        const txs = txData.data || []
+
+        // 从交易数据推导用户列表
+        const memberMap = {}
+        MEMBER_LEVELS.forEach(level => {
+          memberMap[level] = { level, totalAmount: 0, orderCount: 0, cityMap: {} }
+        })
+
+        txs.forEach(tx => {
+          if (tx.status !== '已完成') return
+          const level = tx.member_level || '非会员'
+          if (!memberMap[level]) memberMap[level] = { level, totalAmount: 0, orderCount: 0, cityMap: {} }
+
+          memberMap[level].totalAmount += tx.final_amount
+          memberMap[level].orderCount += 1
+
+          if (!memberMap[level].cityMap[tx.city]) {
+            memberMap[level].cityMap[tx.city] = { city: tx.city, count: 0, amount: 0 }
+          }
+          memberMap[level].cityMap[tx.city].count += 1
+          memberMap[level].cityMap[tx.city].amount += tx.final_amount
+        })
+
+        // 生成虚拟用户数据
+        const users = MEMBER_LEVELS.flatMap(level => {
+          const data = memberMap[level]
+          const count = data.orderCount > 0 ? Math.max(1, Math.floor(data.orderCount / 3)) : 0
+          return Array.from({ length: count }, (_, i) => ({
+            id: `${level}-${i}`,
+            vip_no: level !== '非会员' ? `VIP${String(10000 + Math.floor(Math.random() * 9999)).slice(1)}` : null,
+            name: `${level}会员${i + 1}`,
+            gender: randomPick(GENDERS),
+            phone: `138${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+            level,
+            province: Object.keys(data.cityMap)[0] || '上海',
+            city: Object.keys(data.cityMap)[0] || '上海',
+            occupation: randomPick(OCCUPATIONS),
+            birthday: `199${Math.floor(Math.random() * 9)}-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 28) + 1).padStart(2, '0')}`,
+            total_amount: Math.floor(data.totalAmount / count) || 0,
+            order_count: Math.floor(data.orderCount / count) || 0,
+            created_at: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString()
+          }))
+        })
+
+        setTransactions(txs)
+        setMemberStats(statsData.member_stats || [])
+        setUsers(users)
         setLoading(false)
       } catch (err) {
         console.error('用户数据加载失败:', err)
         setError(err.message)
         setLoading(false)
       }
-    }, 300)
-    return () => clearTimeout(timer)
+    }
+    loadData()
   }, [])
+
+  const [users, setUsers] = useState([])
 
   // 用户分层统计
   const userStats = useMemo(() => {
     const userList = users || []
     const stats = MEMBER_LEVELS.map(level => ({
       name: level,
-      value: userList.filter(u => u && u.level === level).length
+      value: memberStats.find(m => m.level === level)?.orders || userList.filter(u => u && u.level === level).length
     }))
 
+    const nonMemberOrders = memberStats.find(m => m.level === '非会员')?.orders || 0
     const user分层 = [
-      { name: '潜客(非会员)', value: userList.filter(u => u && u.level === '非会员').length },
-      { name: '首单客', value: userList.filter(u => u && u.level !== '非会员' && u.order_count === 1).length },
-      { name: '复购客', value: userList.filter(u => u && u.level !== '非会员' && u.order_count >= 2 && u.order_count < 5).length },
-      { name: '忠诚客', value: userList.filter(u => u && u.level !== '非会员' && u.order_count >= 5).length }
+      { name: '潜客(非会员)', value: nonMemberOrders },
+      { name: '龙涎客户', value: memberStats.find(m => m.level === '龙涎')?.orders || 0 },
+      { name: '沉香客户', value: memberStats.find(m => m.level === '沉香')?.orders || 0 },
+      { name: '檀木客户', value: memberStats.find(m => m.level === '檀木')?.orders || 0 },
+      { name: '麝香客户', value: memberStats.find(m => m.level === '麝香')?.orders || 0 }
     ]
 
     return { stats, user分层 }
-  }, [users])
+  }, [users, memberStats])
 
-  // 省份分布
-  const provinceStats = useMemo(() => {
-    const provinceMap = {}
+  // 城市分布
+  const cityStats = useMemo(() => {
+    const cityMap = {}
     ;(users || []).forEach(u => {
-      if (u && u.province) {
-        provinceMap[u.province] = (provinceMap[u.province] || 0) + 1
+      if (u && u.city) {
+        cityMap[u.city] = (cityMap[u.city] || 0) + 1
       }
     })
-    return Object.entries(provinceMap)
+    return Object.entries(cityMap)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 10)
@@ -68,7 +130,7 @@ export default function UsersPage() {
     return (users || []).filter(user => {
       if (!user) return false
       if (filter.level && user.level !== filter.level) return false
-      if (filter.province && user.province !== filter.province) return false
+      if (filter.city && user.city !== filter.city) return false
       if (filter.search) {
         const search = filter.search.toLowerCase()
         const name = (user.name || '').toLowerCase()
@@ -97,8 +159,7 @@ export default function UsersPage() {
     { key: 'phone', title: '手机号' },
     { key: 'level', title: '等级', render: (v) => <Badge variant="accent">{v || '-'}</Badge> },
     { key: 'occupation', title: '职业' },
-    { key: 'birthday', title: '生日' },
-    { key: 'province', title: '省份' },
+    { key: 'city', title: '城市' },
     { key: 'order_count', title: '订单数' },
     { key: 'total_amount', title: '累计消费', render: (v) => `¥${(v || 0).toLocaleString()}` },
     { key: 'created_at', title: '注册日期', render: (v) => v ? new Date(v).toLocaleDateString() : '-' }
@@ -139,12 +200,13 @@ export default function UsersPage() {
         <Card title="用户分层模型">
           <div className="space-y-4">
             {userStats.user分层.map(item => {
-              const percent = users.length > 0 ? Math.round(item.value / users.length * 100) : 0
+              const totalOrders = userStats.user分层.reduce((sum, i) => sum + i.value, 0)
+              const percent = totalOrders > 0 ? Math.round(item.value / totalOrders * 100) : 0
               return (
                 <div key={item.name} className="space-y-1">
                   <div className="flex justify-between text-sm">
                     <span>{item.name}</span>
-                    <span className="text-textSecondary">{item.value}人 ({percent}%)</span>
+                    <span className="text-textSecondary">{item.value}单 ({percent}%)</span>
                   </div>
                   <div className="h-2 bg-primary rounded-full overflow-hidden">
                     <div
@@ -160,8 +222,8 @@ export default function UsersPage() {
       </div>
 
       {/* 地域分布 */}
-      <Card title="TOP10省份分布">
-        <BarChartComponent data={provinceStats} nameKey="name" dataKey="value" height={250} />
+      <Card title="TOP10城市分布">
+        <BarChartComponent data={cityStats} nameKey="name" dataKey="value" height={250} />
       </Card>
 
       {/* 用户明细 */}
@@ -190,15 +252,15 @@ export default function UsersPage() {
             {MEMBER_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
           <select
-            value={filter.province}
+            value={filter.city}
             onChange={(e) => {
-              setFilter({ ...filter, province: e.target.value })
+              setFilter({ ...filter, city: e.target.value })
               setCurrentPage(1)
             }}
             className="px-3 py-2 bg-primary border border-border rounded-lg text-sm focus:outline-none"
           >
-            <option value="">全部省份</option>
-            {[...new Set((users || []).map(u => u.province).filter(Boolean))].map(p => <option key={p} value={p}>{p}</option>)}
+            <option value="">全部城市</option>
+            {[...new Set((users || []).map(u => u.city).filter(Boolean))].map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
 

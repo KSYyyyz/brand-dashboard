@@ -6,12 +6,20 @@ import BarChartComponent from '../../components/charts/BarChart'
 import StoreDetailModal from '../../components/ui/StoreDetailModal'
 import DateRangePicker from '../../components/ui/DateRangePicker'
 import { useDateRange, getDateRange } from '../../context/DateRangeContext'
-import { generateAllMockData } from '../../lib/mock-generator'
+import { fetchStores, fetchTransactions, fetchStats } from '../../lib/api'
+
+// 门店状态映射
+const STORE_STATUS = {
+  '夜庙': '升级中',
+  '亮堂空间': '已关闭',
+  '方舟ARK': '快闪店',
+  '红房子': '快闪店'
+}
 
 export default function StoresPage() {
   const [loading, setLoading] = useState(true)
   const [stores, setStores] = useState([])
-  const [allStoreSales, setAllStoreSales] = useState([])
+  const [transactions, setTransactions] = useState([])
   const [filter, setFilter] = useState({ status: '', province: '', search: '' })
   const [selectedStore, setSelectedStore] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
@@ -20,48 +28,60 @@ export default function StoresPage() {
   const pageSize = 25
 
   useEffect(() => {
-    setTimeout(() => {
+    async function loadData() {
       try {
-        const mockData = generateAllMockData()
-        setStores(mockData.stores || [])
-        setAllStoreSales(mockData.storeSales || [])
-        setLoading(false)
+        setLoading(true)
+        const { start, end } = getDateRange(range)
+        const startStr = start ? start.toISOString().split('T')[0] : null
+        const endStr = end ? end.toISOString().split('T')[0] : null
+
+        const [storesData, statsData, txData] = await Promise.all([
+          fetchStores(),
+          fetchStats(startStr, endStr),
+          fetchTransactions({ limit: 1000, date: startStr })
+        ])
+
+        // 为门店添加状态
+        const storesWithStatus = storesData.map(s => ({
+          ...s,
+          province: s.city,
+          status: STORE_STATUS[s.name] || '营业中',
+          store_code: `DOC${String(s.id).padStart(3, '0')}`,
+          store_name: s.name
+        }))
+
+        setStores(storesWithStatus)
+        setTransactions(txData.data || [])
       } catch (err) {
         console.error('门店数据加载失败:', err)
         setError(err.message)
+      } finally {
         setLoading(false)
       }
-    }, 500)
-  }, [])
-
-  // 根据日期范围过滤销售数据
-  const storeSales = useMemo(() => {
-    const { start, end } = getDateRange(range)
-    if (!start) return allStoreSales // 全部时间
-    return allStoreSales.filter(s => {
-      const date = new Date(s.sale_date)
-      return date >= start && date <= end
-    })
-  }, [allStoreSales, range])
+    }
+    loadData()
+  }, [range])
 
   // 门店统计
   const storeStats = useMemo(() => {
     const stats = stores.map(store => {
-      const sales = storeSales.filter(s => s.store_id === store.id)
-      const totalRevenue = sales.reduce((sum, s) => sum + Number(s.revenue), 0)
-      const totalProfit = sales.reduce((sum, s) => sum + Number(s.profit), 0)
-      const totalCustomers = sales.reduce((sum, s) => sum + s.customer_count, 0)
-      const avgOrder = totalCustomers > 0 ? totalRevenue / totalCustomers : 0
+      const storeTx = transactions.filter(t => t.store_id === store.id && t.status === '已完成')
+      const totalRevenue = storeTx.reduce((sum, t) => sum + t.final_amount, 0)
+      const totalProfit = storeTx.reduce((sum, t) => sum + t.profit, 0)
+      const totalCustomers = new Set(storeTx.map(t => t.member_level + t.city)).size
+      const orderCount = storeTx.length
+      const avgOrder = orderCount > 0 ? totalRevenue / orderCount : 0
       return {
         ...store,
         totalRevenue,
         totalProfit,
         totalCustomers,
+        orderCount,
         avgOrder
       }
     })
     return stats.sort((a, b) => b.totalRevenue - a.totalRevenue)
-  }, [stores, storeSales])
+  }, [stores, transactions])
 
   // 筛选后的门店
   const filteredStores = useMemo(() => {
@@ -90,33 +110,37 @@ export default function StoresPage() {
   const selectedStoreData = useMemo(() => {
     if (!selectedStore) return null
     const store = stores.find(s => s.id === selectedStore)
-    const sales = storeSales.filter(s => s.store_id === selectedStore)
+    const storeTx = transactions.filter(t => t.store_id === selectedStore && t.status === '已完成')
 
-    const totalRevenue = sales.reduce((sum, s) => sum + Number(s.revenue), 0)
-    const totalProfit = sales.reduce((sum, s) => sum + Number(s.profit), 0)
-    const totalCustomers = sales.reduce((sum, s) => sum + s.customer_count, 0)
-    const avgOrder = totalCustomers > 0 ? totalRevenue / totalCustomers : 0
+    const totalRevenue = storeTx.reduce((sum, t) => sum + t.final_amount, 0)
+    const totalProfit = storeTx.reduce((sum, t) => sum + t.profit, 0)
+    const totalCustomers = new Set(storeTx.map(t => t.member_level + t.city)).size
+    const orderCount = storeTx.length
+    const avgOrder = orderCount > 0 ? totalRevenue / orderCount : 0
     const profitRate = totalRevenue > 0 ? (totalProfit / totalRevenue * 100) : 0
 
     return {
       store,
-      sales,
-      stats: { totalRevenue, totalProfit, totalCustomers, avgOrder, profitRate }
+      sales: storeTx,
+      stats: { totalRevenue, totalProfit, totalCustomers, orderCount, avgOrder, profitRate }
     }
-  }, [selectedStore, stores, storeSales])
+  }, [selectedStore, stores, transactions])
 
   const columns = [
     { key: 'store_code', title: '门店编码', render: (v) => <span className="text-accent">{v}</span> },
     { key: 'store_name', title: '门店名称' },
-    { key: 'province', title: '省份' },
     { key: 'city', title: '城市' },
     { key: 'status', title: '状态', render: (v) => (
-      <span className={`px-2 py-0.5 rounded text-xs ${v === '营业中' ? 'bg-success/20 text-success' : 'bg-error/20 text-error'}`}>
+      <span className={`px-2 py-0.5 rounded text-xs ${
+        v === '营业中' ? 'bg-success/20 text-success' :
+        v === '快闪店' ? 'bg-warning/20 text-warning' :
+        'bg-error/20 text-error'
+      }`}>
         {v}
       </span>
     )},
+    { key: 'orderCount', title: '订单数' },
     { key: 'totalRevenue', title: '销售额', render: (v) => `¥${(v / 10000).toFixed(1)}万` },
-    { key: 'totalCustomers', title: '客户数' },
     { key: 'avgOrder', title: '客单价', render: (v) => `¥${Math.round(v)}` }
   ]
 
@@ -143,8 +167,8 @@ export default function StoresPage() {
   }
 
   const totalRevenue = storeStats.reduce((sum, s) => sum + s.totalRevenue, 0)
-  const totalCustomers = storeStats.reduce((sum, s) => sum + s.totalCustomers, 0)
-  const avgOrder = totalCustomers > 0 ? totalRevenue / totalCustomers : 0
+  const totalOrders = storeStats.reduce((sum, s) => sum + s.orderCount, 0)
+  const avgOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0
 
   return (
     <div className="p-6 space-y-6">
@@ -158,7 +182,7 @@ export default function StoresPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard title="门店总数" value={stores.length} />
         <MetricCard title="总销售额" value={`¥${(totalRevenue / 10000).toFixed(1)}万`} />
-        <MetricCard title="总客户数" value={totalCustomers.toLocaleString()} />
+        <MetricCard title="总订单数" value={totalOrders.toLocaleString()} />
         <MetricCard title="平均客单价" value={`¥${Math.round(avgOrder)}`} />
       </div>
 
@@ -188,8 +212,8 @@ export default function StoresPage() {
             onChange={(e) => setFilter({ ...filter, province: e.target.value })}
             className="px-3 py-2 bg-primary border border-border rounded-lg text-sm focus:outline-none"
           >
-            <option value="">全部省份</option>
-            {[...new Set(stores.map(s => s.province))].map(p => <option key={p} value={p}>{p}</option>)}
+            <option value="">全部城市</option>
+            {[...new Set(stores.map(s => s.city))].map(p => <option key={p} value={p}>{p}</option>)}
           </select>
           <select
             value={filter.status}
@@ -198,7 +222,9 @@ export default function StoresPage() {
           >
             <option value="">全部状态</option>
             <option value="营业中">营业中</option>
-            <option value="歇业">歇业</option>
+            <option value="快闪店">快闪店</option>
+            <option value="升级中">升级中</option>
+            <option value="已关闭">已关闭</option>
           </select>
         </div>
 
