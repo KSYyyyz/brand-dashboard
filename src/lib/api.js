@@ -1,7 +1,26 @@
 // 闻献数据平台 - API 服务层
-// 调用 mock-merchant 后端 API
+// 调用 mock-merchant 后端 API，带缓存
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://mock-merchant.vercel.app'
+const CACHE_DURATION = 30000 // 缓存30秒
+
+// 简单内存缓存
+const cache = new Map()
+
+function getCached(key) {
+  const item = cache.get(key)
+  if (!item) return null
+  if (Date.now() - item.timestamp > CACHE_DURATION) {
+    cache.delete(key)
+    return null
+  }
+  return item.data
+}
+
+function setCache(key, data) {
+  cache.delete(key)
+  cache.set(key, { data, timestamp: Date.now() })
+}
 
 async function fetchAPI(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`
@@ -18,9 +37,20 @@ async function fetchAPI(endpoint, options = {}) {
   }
 }
 
+// 带缓存的 API 调用
+async function fetchCached(endpoint, options = {}) {
+  const cacheKey = endpoint + JSON.stringify(options.body || '')
+  const cached = getCached(cacheKey)
+  if (cached) return cached
+
+  const data = await fetchAPI(endpoint, options)
+  setCache(cacheKey, data)
+  return data
+}
+
 // 健康检查
 export async function fetchHealth() {
-  return fetchAPI('/api/health')
+  return fetchCached('/api/health')
 }
 
 // 获取统计数据
@@ -29,12 +59,12 @@ export async function fetchStats(startDate, endDate) {
   if (startDate) params.set('start_date', startDate)
   if (endDate) params.set('end_date', endDate)
   const query = params.toString() ? `?${params.toString()}` : ''
-  return fetchAPI(`/api/stats${query}`)
+  return fetchCached(`/api/stats${query}`)
 }
 
 // 获取每日趋势
 export async function fetchDailyStats(days = 30) {
-  return fetchAPI(`/api/stats/daily?days=${days}`)
+  return fetchCached(`/api/stats/daily?days=${days}`)
 }
 
 // 获取交易列表
@@ -44,38 +74,44 @@ export async function fetchTransactions({ limit = 100, offset = 0, date, status,
   if (status) params.set('status', status)
   if (city) params.set('city', city)
   if (platform) params.set('platform', platform)
-  return fetchAPI(`/api/transactions?${params}`)
+  return fetchCached(`/api/transactions?${params}`)
 }
 
-// 生成单笔交易
+// 不缓存的操作性API（生成、上传等）
 export async function generateTransaction() {
+  cache.clear() // 清除缓存，因为数据变了
   return fetchAPI('/api/transactions/generate', { method: 'POST' })
 }
 
-// 批量生成交易
 export async function batchGenerateTransactions(count = 10, backfillDays = 0) {
+  cache.clear()
   return fetchAPI('/api/transactions/batch', {
     method: 'POST',
     body: JSON.stringify({ count, backfill_days: backfillDays })
   })
 }
 
-// 初始化历史数据
 export async function initHistoryData(days = 30) {
+  cache.clear()
   return fetchAPI('/api/init', {
     method: 'POST',
     body: JSON.stringify({ days })
   })
 }
 
-// 获取商品列表
+// 获取商品列表（长期缓存）
 export async function fetchProducts() {
-  return fetchAPI('/api/products')
+  return fetchCached('/api/products')
 }
 
-// 获取门店列表
+// 获取门店列表（长期缓存）
 export async function fetchStores() {
-  return fetchAPI('/api/stores')
+  return fetchCached('/api/stores')
+}
+
+// 清除缓存
+export function clearCache() {
+  cache.clear()
 }
 
 // 将交易数据转换为平台需要的格式
