@@ -468,24 +468,12 @@ app.get('/', (req, res) => {
   })
 })
 
-// 启动
-app.listen(PORT, () => {
-  console.log(`
-╔═══════════════════════════════════════════════════════╗
-║       闻献商户交易模拟服务 (Supabase)                 ║
-╠═══════════════════════════════════════════════════════╣
-║  服务地址: http://localhost:${PORT}                       ║
-║                                                       ║
-║  API 接口:                                            ║
-║  • GET  /api/stats          - 获取聚合统计            ║
-║  • GET  /api/stats/daily   - 获取每日趋势            ║
-║  • GET  /api/transactions  - 获取交易列表            ║
-║  • POST /api/transactions/generate  - 生成单笔      ║
-║  • POST /api/transactions/batch     - 批量生成  ║
-║  • POST /api/init          - 初始化历史数据        ║
-║  • GET  /api/products      - 获取商品列表          ║
-║  • GET  /api/stores        - 获取门店列表          ║
-║  • GET  /api/health        - 健康检查               ║
-╚═══════════════════════════════════════════════════════╝
-  `)
-})
+// 启动（本地开发）
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`服务运行在 http://localhost:${PORT}`)
+  })
+}
+
+// Vercel Serverless Export
+export default app
