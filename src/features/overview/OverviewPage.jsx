@@ -5,7 +5,7 @@ import TrendChart from '../../components/charts/TrendChart'
 import DateRangePicker from '../../components/ui/DateRangePicker'
 import RefreshButton from '../../components/ui/RefreshButton'
 import { useData } from '../../context/DataContext'
-import { useDateRange, getDateRange } from '../../context/DateRangeContext'
+import { useDateRange, getDateRange, getPreviousDateRange } from '../../context/DateRangeContext'
 import { PRODUCTS, STORES } from '../../lib/constants'
 
 export default function OverviewPage() {
@@ -14,10 +14,12 @@ export default function OverviewPage() {
   const stores = STORES
   const { range } = useDateRange()
 
-  // 根据日期范围过滤交易
-  const { filteredTx, filteredStats, filteredDailyStats } = useMemo(() => {
+  // 根据日期范围过滤交易并计算统计
+  const { filteredTx, filteredStats, filteredDailyStats, periodComparison } = useMemo(() => {
     const { start, end } = getDateRange(range)
+    const prevRange = getPreviousDateRange(range)
     let filtered = transactions
+    let prevFiltered = transactions
 
     if (start && end) {
       filtered = transactions.filter(tx => {
@@ -26,11 +28,24 @@ export default function OverviewPage() {
       })
     }
 
+    if (!prevRange.isAllTime && prevRange.start && prevRange.end) {
+      prevFiltered = transactions.filter(tx => {
+        const date = new Date(tx.order_time)
+        return date >= prevRange.start && date <= prevRange.end
+      })
+    }
+
     // 重新派生统计
     const completedTx = filtered.filter(t => t.status === '已完成')
+    const prevCompletedTx = prevRange.isAllTime ? [] : prevFiltered.filter(t => t.status === '已完成')
+
     const totalGMV = completedTx.reduce((sum, t) => sum + t.final_amount, 0)
     const totalProfit = completedTx.reduce((sum, t) => sum + t.profit, 0)
     const avgOrderAmount = completedTx.length > 0 ? Math.round(totalGMV / completedTx.length) : 0
+
+    const prevTotalGMV = prevCompletedTx.reduce((sum, t) => sum + t.final_amount, 0)
+    const prevTotalProfit = prevCompletedTx.reduce((sum, t) => sum + t.profit, 0)
+    const prevAvgOrderAmount = prevCompletedTx.length > 0 ? Math.round(prevTotalGMV / prevCompletedTx.length) : 0
 
     // 平台统计
     const platformMap = {}
@@ -74,7 +89,33 @@ export default function OverviewPage() {
       avg_order_amount: avgOrderAmount
     }
 
-    return { filteredTx: filtered, filteredStats: { summary, platform_stats, city_stats }, filteredDailyStats: dailyStats }
+    // 周期对比
+    const calcChange = (current, previous) => {
+      if (prevRange.isAllTime) return null
+      if (previous === 0) return current > 0 ? 100 : 0
+      return ((current - previous) / previous * 100).toFixed(1)
+    }
+
+    const periodComparison = {
+      completed_orders: {
+        change: calcChange(completedTx.length, prevCompletedTx.length),
+        trend: prevRange.isAllTime ? null : completedTx.length >= prevCompletedTx.length ? 'up' : 'down'
+      },
+      total_gmv: {
+        change: calcChange(totalGMV, prevTotalGMV),
+        trend: prevRange.isAllTime ? null : totalGMV >= prevTotalGMV ? 'up' : 'down'
+      },
+      total_profit: {
+        change: calcChange(totalProfit, prevTotalProfit),
+        trend: prevRange.isAllTime ? null : totalProfit >= prevTotalProfit ? 'up' : 'down'
+      },
+      avg_order_amount: {
+        change: calcChange(avgOrderAmount, prevAvgOrderAmount),
+        trend: prevRange.isAllTime ? null : avgOrderAmount >= prevAvgOrderAmount ? 'up' : 'down'
+      }
+    }
+
+    return { filteredTx: filtered, filteredStats: { summary, platform_stats, city_stats }, filteredDailyStats: dailyStats, periodComparison }
   }, [transactions, range])
 
   if (loading && transactions.length === 0) {
@@ -111,18 +152,26 @@ export default function OverviewPage() {
         <MetricCard
           title="已完成订单"
           value={summary.completed_orders.toLocaleString()}
+          change={periodComparison.completed_orders.change}
+          trend={periodComparison.completed_orders.trend}
         />
         <MetricCard
           title="GMV"
           value={`¥${(summary.total_gmv / 10000).toFixed(1)}万`}
+          change={periodComparison.total_gmv.change}
+          trend={periodComparison.total_gmv.trend}
         />
         <MetricCard
           title="总利润"
           value={`¥${(summary.total_profit / 10000).toFixed(1)}万`}
+          change={periodComparison.total_profit.change}
+          trend={periodComparison.total_profit.trend}
         />
         <MetricCard
           title="平均客单价"
           value={`¥${summary.avg_order_amount}`}
+          change={periodComparison.avg_order_amount.change}
+          trend={periodComparison.avg_order_amount.trend}
         />
         <MetricCard
           title="商品种类"
