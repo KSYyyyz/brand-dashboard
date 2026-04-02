@@ -1,5 +1,6 @@
 import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
 import { DateRangeProvider } from './context/DateRangeContext'
+import { DataProvider } from './context/DataContext'
 import OverviewPage from './features/overview/OverviewPage'
 import UsersPage from './features/users/UsersPage'
 import OperationsPage from './features/operations/OperationsPage'
@@ -60,20 +61,22 @@ function Sidebar() {
 export default function App() {
   return (
     <HashRouter>
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <main className="flex-1 overflow-auto">
-          <Routes>
-            <Route path="/" element={<OverviewPage />} />
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="/members" element={<MembersPage />} />
-            <Route path="/products" element={<ProductsPage />} />
-            <Route path="/operations" element={<OperationsPage />} />
-            <Route path="/stores" element={<StoresPage />} />
-            <Route path="/data" element={<DataManagementPage />} />
-          </Routes>
-        </main>
-      </div>
+      <DataProvider>
+        <div className="flex min-h-screen">
+          <Sidebar />
+          <main className="flex-1 overflow-auto">
+            <Routes>
+              <Route path="/" element={<OverviewPage />} />
+              <Route path="/users" element={<UsersPage />} />
+              <Route path="/members" element={<MembersPage />} />
+              <Route path="/products" element={<ProductsPage />} />
+              <Route path="/operations" element={<OperationsPage />} />
+              <Route path="/stores" element={<StoresPage />} />
+              <Route path="/data" element={<DataManagementPage />} />
+            </Routes>
+          </main>
+        </div>
+      </DataProvider>
     </HashRouter>
   )
 }

@@ -1,80 +1,53 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
-import { fetchHealth, fetchStats, fetchProducts, fetchStores, initHistoryData, batchGenerateTransactions } from '../../lib/api'
+import RefreshButton from '../../components/ui/RefreshButton'
+import { useData } from '../../context/DataContext'
+import { batchGenerateTransactions, initHistoryData } from '../../lib/api'
 
 export default function DataManagementPage() {
-  const [loading, setLoading] = useState(false)
+  const { loading, stats, health, products, stores, refresh } = useData()
+  const [actionLoading, setActionLoading] = useState(null)
   const [message, setMessage] = useState(null)
-  const [dataStats, setDataStats] = useState(null)
-  const [initLoading, setInitLoading] = useState(false)
-  const [generateLoading, setGenerateLoading] = useState(false)
 
-  // 页面加载时获取统计
-  useEffect(() => {
-    fetchDataStats()
-  }, [])
-
-  // 获取数据统计
-  const fetchDataStats = async () => {
-    setLoading(true)
-    try {
-      const [health, stats, products, stores] = await Promise.all([
-        fetchHealth(),
-        fetchStats(),
-        fetchProducts(),
-        fetchStores()
-      ])
-
-      setDataStats({
-        transactions: health.total_transactions || 0,
-        products: products.length || 0,
-        stores: stores.length || 0,
-        gmv: stats.summary?.total_gmv || 0,
-        orders: stats.summary?.total_orders || 0
-      })
-      setMessage(null)
-    } catch (error) {
-      console.error('获取数据统计失败:', error)
-      setMessage({ type: 'error', text: '无法连接到模拟服务，请检查网络' })
-    } finally {
-      setLoading(false)
-    }
-  }
+  const summary = stats?.summary || {}
 
   // 初始化历史数据
   const handleInitData = async () => {
-    setInitLoading(true)
+    setActionLoading('init')
     setMessage(null)
     try {
       const result = await initHistoryData(30)
       setMessage({ type: 'success', text: result.message || '历史数据初始化完成' })
-      fetchDataStats()
+      refresh()
     } catch (error) {
       setMessage({ type: 'error', text: `初始化失败: ${error.message}` })
     } finally {
-      setInitLoading(false)
+      setActionLoading(null)
     }
   }
 
   // 批量生成新交易
   const handleGenerateTransactions = async () => {
-    setGenerateLoading(true)
+    setActionLoading('generate')
     setMessage(null)
     try {
       const result = await batchGenerateTransactions(50, 0)
       setMessage({ type: 'success', text: `成功生成 ${result.generated} 笔新交易` })
-      fetchDataStats()
+      refresh()
     } catch (error) {
       setMessage({ type: 'error', text: `生成失败: ${error.message}` })
     } finally {
-      setGenerateLoading(false)
+      setActionLoading(null)
     }
   }
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">数据管理</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">数据管理</h1>
+        <RefreshButton />
+      </div>
 
       {/* 消息提示 */}
       {message && (
@@ -83,56 +56,49 @@ export default function DataManagementPage() {
         </div>
       )}
 
-      {/* 数据统计 */}
+      {/* 模拟服务数据统计 */}
       <Card title="模拟服务数据统计">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {[
-            { name: '交易记录', key: 'transactions' },
-            { name: '商品种类', key: 'products' },
-            { name: '门店数量', key: 'stores' },
-            { name: '总订单数', key: 'orders' },
-            { name: '总GMV', key: 'gmv', format: (v) => `¥${((v || 0) / 10000).toFixed(1)}万` }
+            { name: '交易记录', value: health?.total_transactions || 0 },
+            { name: '商品种类', value: products?.length || 0 },
+            { name: '门店数量', value: stores?.length || 0 },
+            { name: '总订单数', value: summary.total_orders || 0 },
+            { name: '已完成订单', value: summary.completed_orders || 0 },
+            { name: '总GMV', value: `¥${((summary.total_gmv || 0) / 10000).toFixed(1)}万` }
           ].map(item => (
-            <div key={item.key} className="bg-primary p-4 rounded-lg flex items-center justify-between">
+            <div key={item.name} className="bg-primary p-4 rounded-lg flex items-center justify-between">
               <div>
                 <div className="text-sm text-textSecondary">{item.name}</div>
-                <div className="text-lg font-bold text-textPrimary">
-                  {dataStats ? (item.format ? item.format(dataStats[item.key]) : dataStats[item.key]) : '-'} 条
-                </div>
+                <div className="text-lg font-bold text-textPrimary">{loading ? '-' : item.value}</div>
               </div>
-              <Badge variant={dataStats && dataStats[item.key] > 0 ? 'success' : 'default'}>
-                {dataStats && dataStats[item.key] > 0 ? '正常' : '空'}
+              <Badge variant={!loading && item.value > 0 ? 'success' : 'default'}>
+                {!loading && item.value > 0 ? '正常' : '空'}
               </Badge>
             </div>
           ))}
         </div>
-        <button
-          onClick={fetchDataStats}
-          className="mt-4 px-4 py-2 bg-secondary border border-border rounded-lg text-sm hover:bg-border/50"
-        >
-          刷新统计
-        </button>
       </Card>
 
       {/* 数据操作 */}
       <Card title="数据操作">
         <p className="text-textSecondary text-sm mb-4">
-          模拟服务 API 地址: {import.meta.env.VITE_API_BASE || 'https://mock-merchant.vercel.app'}
+          API 地址: {import.meta.env.VITE_API_BASE || 'https://mock-merchant.vercel.app'}
         </p>
         <div className="flex gap-4">
           <button
             onClick={handleInitData}
-            disabled={initLoading}
+            disabled={actionLoading === 'init'}
             className="px-4 py-2 bg-accent text-primary font-medium rounded-lg hover:bg-accentLight disabled:opacity-50"
           >
-            {initLoading ? '初始化中...' : '初始化30天历史数据'}
+            {actionLoading === 'init' ? '初始化中...' : '初始化30天历史数据'}
           </button>
           <button
             onClick={handleGenerateTransactions}
-            disabled={generateLoading}
+            disabled={actionLoading === 'generate'}
             className="px-4 py-2 bg-success text-white font-medium rounded-lg hover:bg-success/80 disabled:opacity-50"
           >
-            {generateLoading ? '生成中...' : '生成50笔新交易'}
+            {actionLoading === 'generate' ? '生成中...' : '生成50笔新交易'}
           </button>
         </div>
       </Card>

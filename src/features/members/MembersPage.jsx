@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import Card from '../../components/ui/Card'
 import MetricCard from '../../components/ui/MetricCard'
 import Badge from '../../components/ui/Badge'
 import Table from '../../components/ui/Table'
 import PieChartComponent from '../../components/charts/PieChart'
 import DateRangePicker from '../../components/ui/DateRangePicker'
+import RefreshButton from '../../components/ui/RefreshButton'
+import { useData } from '../../context/DataContext'
 import { useDateRange, getDateRange } from '../../context/DateRangeContext'
-import { fetchTransactions, fetchStats } from '../../lib/api'
 
 const MEMBER_LEVELS = ['龙涎', '沉香', '檀木', '麝香', '非会员']
 const GENDERS = ['男', '女']
@@ -17,64 +18,42 @@ function randomPick(arr) {
 }
 
 export default function MembersPage() {
-  const [loading, setLoading] = useState(true)
-  const [transactions, setTransactions] = useState([])
-  const [memberStats, setMemberStats] = useState([])
-  const [error, setError] = useState(null)
+  const { loading, transactions, stats } = useData()
   const [selectedLevel, setSelectedLevel] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const { range } = useDateRange()
   const pageSize = 10
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true)
-        const [txData, statsData] = await Promise.all([
-          fetchTransactions({ limit: 500 }),
-          fetchStats()
-        ])
+  const memberStats = stats?.member_stats || []
 
-        const txs = txData.data || []
-
-        setTransactions(txs)
-        setMemberStats(statsData.member_stats || [])
-        setLoading(false)
-      } catch (err) {
-        console.error('会员数据加载失败:', err)
-        setError(err.message)
-        setLoading(false)
-      }
-    }
-    loadData()
-  }, [])
-
-  // 根据日期范围过滤订单和用户
-  const { filteredOrders, users } = useMemo(() => {
+  // 根据日期范围过滤交易
+  const filteredTransactions = useMemo(() => {
     const { start, end } = getDateRange(range)
-    let orders = transactions
+    if (!start) return transactions || []
+    return (transactions || []).filter(tx => {
+      const date = new Date(tx.order_time)
+      return date >= start && date <= end
+    })
+  }, [transactions, range])
 
-    if (start) {
-      orders = transactions.filter(o => {
-        const date = new Date(o.order_time)
-        return date >= start && date <= end
-      })
-    }
-
-    // 根据订单重新计算用户数据
-    const userMap = {}
-    orders.forEach(tx => {
-      if (tx.status !== '已完成') return
-      const key = tx.member_level || '非会员'
-      if (!userMap[key]) {
-        userMap[key] = { level: key, totalAmount: 0, orderCount: 0 }
-      }
-      userMap[key].totalAmount += tx.final_amount
-      userMap[key].orderCount += 1
+  // 从交易数据推导会员列表
+  const users = useMemo(() => {
+    const memberMap = {}
+    MEMBER_LEVELS.forEach(level => {
+      memberMap[level] = { level, totalAmount: 0, orderCount: 0 }
     })
 
-    const derivedUsers = MEMBER_LEVELS.flatMap(level => {
-      const data = userMap[level] || { totalAmount: 0, orderCount: 0 }
+    filteredTransactions.forEach(tx => {
+      if (tx.status !== '已完成') return
+      const level = tx.member_level || '非会员'
+      if (!memberMap[level]) memberMap[level] = { level, totalAmount: 0, orderCount: 0 }
+
+      memberMap[level].totalAmount += tx.final_amount
+      memberMap[level].orderCount += 1
+    })
+
+    return MEMBER_LEVELS.flatMap(level => {
+      const data = memberMap[level]
       const count = data.orderCount > 0 ? Math.max(1, Math.floor(data.orderCount / 3)) : 0
       return Array.from({ length: count }, (_, i) => ({
         id: `${level}-${i}-${range}`,
@@ -87,20 +66,18 @@ export default function MembersPage() {
         city: '上海',
         occupation: randomPick(OCCUPATIONS),
         birthday: `199${Math.floor(Math.random() * 9)}-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 28) + 1).padStart(2, '0')}`,
-        total_amount: Math.floor(data.totalAmount / count) || 0,
-        order_count: Math.floor(data.orderCount / count) || 0,
+        total_amount: count > 0 ? Math.floor(data.totalAmount / count) : 0,
+        order_count: count > 0 ? Math.floor(data.orderCount / count) : 0,
         created_at: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString()
       }))
     })
-
-    return { filteredOrders: orders, users: derivedUsers }
-  }, [transactions, range])
+  }, [filteredTransactions, range])
 
   // 会员等级统计
   const levelStats = useMemo(() => {
     return MEMBER_LEVELS.map(level => ({
       name: level,
-      value: memberStats.find(m => m.level === level)?.orders || users.filter(u => u && u.level === level).length
+      value: memberStats.find(m => m.level === level)?.orders || users.filter(u => u.level === level).length
     }))
   }, [users, memberStats])
 
@@ -117,7 +94,6 @@ export default function MembersPage() {
   const statusStats = useMemo(() => {
     const totalOrders = users.reduce((sum, u) => sum + (u?.order_count || 0), 0)
     const activeOrders = Math.floor(totalOrders * 0.7)
-    const inactiveOrders = totalOrders - activeOrders
 
     return [
       { name: '活跃会员', value: activeOrders > 0 ? Math.floor(users.length * 0.7) : 0 },
@@ -175,17 +151,6 @@ export default function MembersPage() {
     )
   }
 
-  if (error) {
-    return (
-      <div className="p-6 space-y-6">
-        <h1 className="text-2xl font-bold">会员管理</h1>
-        <div className="p-4 bg-error/20 text-error rounded-lg">
-          数据加载失败: {error}
-        </div>
-      </div>
-    )
-  }
-
   const totalMembers = users.length
   const activeMembers = statusStats[0].value
   const totalConsumption = users.reduce((sum, u) => sum + (u?.total_amount || 0), 0)
@@ -195,7 +160,10 @@ export default function MembersPage() {
       {/* 标题栏 */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">会员管理</h1>
-        <DateRangePicker />
+        <div className="flex items-center gap-4">
+          <RefreshButton />
+          <DateRangePicker />
+        </div>
       </div>
 
       {/* 核心指标 */}

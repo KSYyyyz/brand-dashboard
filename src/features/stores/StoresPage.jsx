@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import Card from '../../components/ui/Card'
 import MetricCard from '../../components/ui/MetricCard'
 import Table from '../../components/ui/Table'
 import BarChartComponent from '../../components/charts/BarChart'
 import StoreDetailModal from '../../components/ui/StoreDetailModal'
 import DateRangePicker from '../../components/ui/DateRangePicker'
+import RefreshButton from '../../components/ui/RefreshButton'
+import { useData } from '../../context/DataContext'
 import { useDateRange, getDateRange } from '../../context/DateRangeContext'
-import { fetchStores, fetchTransactions, fetchStats } from '../../lib/api'
 
 // 门店状态映射
 const STORE_STATUS = {
@@ -17,77 +18,57 @@ const STORE_STATUS = {
 }
 
 export default function StoresPage() {
-  const [loading, setLoading] = useState(true)
-  const [stores, setStores] = useState([])
-  const [transactions, setTransactions] = useState([])
-  const [filter, setFilter] = useState({ status: '', province: '', search: '' })
+  const { loading, stores, transactions, stats } = useData()
+  const [filter, setFilter] = useState({ status: '', city: '', search: '' })
   const [selectedStore, setSelectedStore] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [error, setError] = useState(null)
   const { range } = useDateRange()
   const pageSize = 25
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true)
-        const { start, end } = getDateRange(range)
-        const startStr = start ? start.toISOString().split('T')[0] : null
-        const endStr = end ? end.toISOString().split('T')[0] : null
+  // 为门店添加状态
+  const storesWithStatus = useMemo(() => {
+    return (stores || []).map(s => ({
+      ...s,
+      province: s.city,
+      status: STORE_STATUS[s.name] || '营业中',
+      store_code: `DOC${String(s.id).padStart(3, '0')}`,
+      store_name: s.name
+    }))
+  }, [stores])
 
-        const [storesData, statsData, txData] = await Promise.all([
-          fetchStores(),
-          fetchStats(startStr, endStr),
-          fetchTransactions({ limit: 1000, date: startStr })
-        ])
-
-        // 为门店添加状态
-        const storesWithStatus = storesData.map(s => ({
-          ...s,
-          province: s.city,
-          status: STORE_STATUS[s.name] || '营业中',
-          store_code: `DOC${String(s.id).padStart(3, '0')}`,
-          store_name: s.name
-        }))
-
-        setStores(storesWithStatus)
-        setTransactions(txData.data || [])
-      } catch (err) {
-        console.error('门店数据加载失败:', err)
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadData()
-  }, [range])
+  // 根据日期范围过滤交易
+  const filteredTransactions = useMemo(() => {
+    const { start, end } = getDateRange(range)
+    if (!start) return transactions || []
+    return (transactions || []).filter(tx => {
+      const date = new Date(tx.order_time)
+      return date >= start && date <= end
+    })
+  }, [transactions, range])
 
   // 门店统计
   const storeStats = useMemo(() => {
-    const stats = stores.map(store => {
-      const storeTx = transactions.filter(t => t.store_id === store.id && t.status === '已完成')
+    return storesWithStatus.map(store => {
+      const storeTx = (filteredTransactions || []).filter(t => t.store_id === store.id && t.status === '已完成')
       const totalRevenue = storeTx.reduce((sum, t) => sum + t.final_amount, 0)
       const totalProfit = storeTx.reduce((sum, t) => sum + t.profit, 0)
-      const totalCustomers = new Set(storeTx.map(t => t.member_level + t.city)).size
       const orderCount = storeTx.length
       const avgOrder = orderCount > 0 ? totalRevenue / orderCount : 0
       return {
         ...store,
         totalRevenue,
         totalProfit,
-        totalCustomers,
         orderCount,
         avgOrder
       }
-    })
-    return stats.sort((a, b) => b.totalRevenue - a.totalRevenue)
-  }, [stores, transactions])
+    }).sort((a, b) => b.totalRevenue - a.totalRevenue)
+  }, [storesWithStatus, filteredTransactions])
 
   // 筛选后的门店
   const filteredStores = useMemo(() => {
     return storeStats.filter(store => {
       if (filter.status && store.status !== filter.status) return false
-      if (filter.province && store.province !== filter.province) return false
+      if (filter.city && store.city !== filter.city) return false
       if (filter.search) {
         const search = filter.search.toLowerCase()
         if (!store.store_name.toLowerCase().includes(search) &&
@@ -106,15 +87,14 @@ export default function StoresPage() {
 
   const totalPages = Math.ceil(filteredStores.length / pageSize)
 
-  // 选中门店的详细销售数据
+  // 选中门店的详细数据
   const selectedStoreData = useMemo(() => {
     if (!selectedStore) return null
-    const store = stores.find(s => s.id === selectedStore)
-    const storeTx = transactions.filter(t => t.store_id === selectedStore && t.status === '已完成')
+    const store = storesWithStatus.find(s => s.id === selectedStore)
+    const storeTx = (filteredTransactions || []).filter(t => t.store_id === selectedStore && t.status === '已完成')
 
     const totalRevenue = storeTx.reduce((sum, t) => sum + t.final_amount, 0)
     const totalProfit = storeTx.reduce((sum, t) => sum + t.profit, 0)
-    const totalCustomers = new Set(storeTx.map(t => t.member_level + t.city)).size
     const orderCount = storeTx.length
     const avgOrder = orderCount > 0 ? totalRevenue / orderCount : 0
     const profitRate = totalRevenue > 0 ? (totalProfit / totalRevenue * 100) : 0
@@ -122,9 +102,9 @@ export default function StoresPage() {
     return {
       store,
       sales: storeTx,
-      stats: { totalRevenue, totalProfit, totalCustomers, orderCount, avgOrder, profitRate }
+      stats: { totalRevenue, totalProfit, orderCount, avgOrder, profitRate }
     }
-  }, [selectedStore, stores, transactions])
+  }, [selectedStore, storesWithStatus, filteredTransactions])
 
   const columns = [
     { key: 'store_code', title: '门店编码', render: (v) => <span className="text-accent">{v}</span> },
@@ -155,17 +135,6 @@ export default function StoresPage() {
     )
   }
 
-  if (error) {
-    return (
-      <div className="p-6 space-y-6">
-        <h1 className="text-2xl font-bold">门店管理</h1>
-        <div className="p-4 bg-error/20 text-error rounded-lg">
-          数据加载失败: {error}
-        </div>
-      </div>
-    )
-  }
-
   const totalRevenue = storeStats.reduce((sum, s) => sum + s.totalRevenue, 0)
   const totalOrders = storeStats.reduce((sum, s) => sum + s.orderCount, 0)
   const avgOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0
@@ -175,12 +144,15 @@ export default function StoresPage() {
       {/* 标题栏 */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">门店管理</h1>
-        <DateRangePicker />
+        <div className="flex items-center gap-4">
+          <RefreshButton />
+          <DateRangePicker />
+        </div>
       </div>
 
       {/* 核心指标 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard title="门店总数" value={stores.length} />
+        <MetricCard title="门店总数" value={storesWithStatus.length} />
         <MetricCard title="总销售额" value={`¥${(totalRevenue / 10000).toFixed(1)}万`} />
         <MetricCard title="总订单数" value={totalOrders.toLocaleString()} />
         <MetricCard title="平均客单价" value={`¥${Math.round(avgOrder)}`} />
@@ -208,12 +180,12 @@ export default function StoresPage() {
             className="px-3 py-2 bg-primary border border-border rounded-lg text-sm focus:outline-none focus:border-accent"
           />
           <select
-            value={filter.province}
-            onChange={(e) => setFilter({ ...filter, province: e.target.value })}
+            value={filter.city}
+            onChange={(e) => setFilter({ ...filter, city: e.target.value })}
             className="px-3 py-2 bg-primary border border-border rounded-lg text-sm focus:outline-none"
           >
             <option value="">全部城市</option>
-            {[...new Set(stores.map(s => s.city))].map(p => <option key={p} value={p}>{p}</option>)}
+            {[...new Set(storesWithStatus.map(s => s.city))].map(p => <option key={p} value={p}>{p}</option>)}
           </select>
           <select
             value={filter.status}
@@ -245,7 +217,7 @@ export default function StoresPage() {
             </button>
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
+              disabled={currentPage >= totalPages}
               className="px-3 py-1 bg-secondary border border-border rounded text-sm disabled:opacity-50"
             >
               下一页

@@ -1,11 +1,12 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import Card from '../../components/ui/Card'
 import MetricCard from '../../components/ui/MetricCard'
 import Badge from '../../components/ui/Badge'
 import Table from '../../components/ui/Table'
 import BarChartComponent from '../../components/charts/BarChart'
 import ProductDetailModal from '../../components/ui/ProductDetailModal'
-import { fetchProducts, fetchStats } from '../../lib/api'
+import RefreshButton from '../../components/ui/RefreshButton'
+import { useData } from '../../context/DataContext'
 
 // 系列映射
 const COLLECTION_MAP = {
@@ -32,9 +33,7 @@ const COLLECTIONS = ['全部', '第一季', '第二季', '第四季', '第五季
 const CATEGORIES = ['全部', '浓香水', '身体护理', '香薰']
 
 export default function ProductsPage() {
-  const [loading, setLoading] = useState(true)
-  const [products, setProducts] = useState([])
-  const [productStats, setProductStats] = useState([])
+  const { loading, stats, products } = useData()
   const [selectedCollection, setSelectedCollection] = useState('全部')
   const [selectedCategory, setSelectedCategory] = useState('全部')
   const [searchText, setSearchText] = useState('')
@@ -42,44 +41,30 @@ export default function ProductsPage() {
   const [selectedProduct, setSelectedProduct] = useState(null)
   const pageSize = 10
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true)
-        const [productsData, statsData] = await Promise.all([
-          fetchProducts(),
-          fetchStats()
-        ])
-        // 合并产品数据和销售统计
-        const merged = productsData.map(p => {
-          const stat = (statsData.product_stats || []).find(s => s.product_id === p.id)
-          return {
-            ...p,
-            sales: stat?.orders || 0,
-            revenue: stat?.gmv || 0,
-            collection: getCollection(p.name)
-          }
-        })
-        setProducts(merged)
-        setProductStats(statsData.product_stats || [])
-      } catch (err) {
-        console.error('商品数据加载失败:', err)
-      } finally {
-        setLoading(false)
+  const productStats = stats?.product_stats || []
+
+  // 合并产品数据和销售统计
+  const mergedProducts = useMemo(() => {
+    return (products || []).map(p => {
+      const stat = productStats.find(s => s.product_id === p.id)
+      return {
+        ...p,
+        sales: stat?.orders || 0,
+        revenue: stat?.gmv || 0,
+        collection: getCollection(p.name)
       }
-    }
-    loadData()
-  }, [])
+    })
+  }, [products, productStats])
 
   // 筛选后的商品
   const filteredProducts = useMemo(() => {
-    return products.filter(p => {
+    return mergedProducts.filter(p => {
       if (selectedCollection !== '全部' && p.collection !== selectedCollection) return false
       if (selectedCategory !== '全部' && p.category !== selectedCategory) return false
       if (searchText && !p.name.toLowerCase().includes(searchText.toLowerCase())) return false
       return true
     })
-  }, [products, selectedCollection, selectedCategory, searchText])
+  }, [mergedProducts, selectedCollection, selectedCategory, searchText])
 
   const paginatedProducts = useMemo(() => {
     const start = (currentPage - 1) * pageSize
@@ -89,12 +74,12 @@ export default function ProductsPage() {
   const totalPages = Math.ceil(filteredProducts.length / pageSize)
 
   // 统计数据
-  const stats = useMemo(() => {
+  const statsData = useMemo(() => {
     const totalSales = productStats.reduce((sum, p) => sum + p.orders, 0)
     const totalRevenue = productStats.reduce((sum, p) => sum + p.gmv, 0)
-    const avgPrice = products.length > 0 ? products.reduce((sum, p) => sum + p.price, 0) / products.length : 0
-    return { totalSales, totalRevenue, avgPrice, lowStock: 0 }
-  }, [products, productStats])
+    const avgPrice = mergedProducts.length > 0 ? mergedProducts.reduce((sum, p) => sum + p.price, 0) / mergedProducts.length : 0
+    return { totalSales, totalRevenue, avgPrice }
+  }, [mergedProducts, productStats])
 
   // 商品销量排行
   const salesRanking = useMemo(() => {
@@ -107,7 +92,7 @@ export default function ProductsPage() {
   // 商品分类销量
   const categorySales = useMemo(() => {
     const map = {}
-    products.forEach(p => {
+    mergedProducts.forEach(p => {
       const stat = productStats.find(s => s.product_id === p.id)
       const orders = stat?.orders || 0
       map[p.category] = (map[p.category] || 0) + orders
@@ -116,7 +101,7 @@ export default function ProductsPage() {
       .map(([name, value]) => ({ name, value }))
       .filter(item => item.value > 0)
       .sort((a, b) => b.value - a.value)
-  }, [products, productStats])
+  }, [mergedProducts, productStats])
 
   const columns = [
     { key: 'id', title: '编号', render: (v) => <span className="text-textSecondary">#{String(v).padStart(3, '0')}</span> },
@@ -141,14 +126,18 @@ export default function ProductsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">商品管理</h1>
+      {/* 标题栏 */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">商品管理</h1>
+        <RefreshButton />
+      </div>
 
       {/* 核心指标 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard title="商品种类" value={products.length} />
-        <MetricCard title="总销量" value={stats.totalSales} />
-        <MetricCard title="总销售额" value={`¥${(stats.totalRevenue / 10000).toFixed(0)}万`} />
-        <MetricCard title="平均单价" value={`¥${Math.round(stats.avgPrice)}`} />
+        <MetricCard title="商品种类" value={mergedProducts.length} />
+        <MetricCard title="总销量" value={statsData.totalSales} />
+        <MetricCard title="总销售额" value={`¥${(statsData.totalRevenue / 10000).toFixed(0)}万`} />
+        <MetricCard title="平均单价" value={`¥${Math.round(statsData.avgPrice)}`} />
       </div>
 
       {/* 销售分析 */}

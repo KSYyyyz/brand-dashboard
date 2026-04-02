@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import Card from '../../components/ui/Card'
 import MetricCard from '../../components/ui/MetricCard'
 import TrendChart from '../../components/charts/TrendChart'
 import BarChartComponent from '../../components/charts/BarChart'
 import DateRangePicker from '../../components/ui/DateRangePicker'
+import RefreshButton from '../../components/ui/RefreshButton'
 import { useDateRange, getDateRange } from '../../context/DateRangeContext'
-import { fetchDailyStats, fetchStats } from '../../lib/api'
 
 const ADS_PLATFORMS = ['抖音千川', '腾讯广告', '小红书']
 const CONTENT_PLATFORMS = ['抖音', '小红书', '微信视频号']
@@ -78,6 +78,17 @@ export default function OperationsPage() {
   const [allContentData, setAllContentData] = useState([])
   const [error, setError] = useState(null)
   const { range } = useDateRange()
+
+  // 生成或刷新数据
+  const generateData = useCallback(() => {
+    setAllAdsData(generateMockAdsData(30))
+    setAllContentData(generateMockContentData(30))
+  }, [])
+
+  useEffect(() => {
+    generateData()
+    setLoading(false)
+  }, [generateData])
 
   useEffect(() => {
     setTimeout(() => {
@@ -198,7 +209,10 @@ export default function OperationsPage() {
       {/* 标题栏 */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">运营分析</h1>
-        <DateRangePicker />
+        <div className="flex items-center gap-4">
+          <RefreshButton />
+          <DateRangePicker />
+        </div>
       </div>
 
       {/* 投流核心指标 */}

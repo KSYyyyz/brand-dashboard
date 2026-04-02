@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Table from '../../components/ui/Table'
 import PieChartComponent from '../../components/charts/PieChart'
 import BarChartComponent from '../../components/charts/BarChart'
-import { fetchTransactions, fetchStats } from '../../lib/api'
+import RefreshButton from '../../components/ui/RefreshButton'
+import { useData } from '../../context/DataContext'
 
 const MEMBER_LEVELS = ['龙涎', '沉香', '檀木', '麝香', '非会员']
 const GENDERS = ['男', '女']
@@ -15,88 +16,57 @@ function randomPick(arr) {
 }
 
 export default function UsersPage() {
-  const [loading, setLoading] = useState(true)
-  const [transactions, setTransactions] = useState([])
-  const [memberStats, setMemberStats] = useState([])
-  const [error, setError] = useState(null)
+  const { loading, transactions, stats } = useData()
   const [filter, setFilter] = useState({ level: '', city: '', search: '' })
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 10
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true)
-        const [txData, statsData] = await Promise.all([
-          fetchTransactions({ limit: 500 }),
-          fetchStats()
-        ])
+  const memberStats = stats?.member_stats || []
 
-        const txs = txData.data || []
+  // 从交易数据推导用户列表
+  const users = useMemo(() => {
+    const memberMap = {}
+    MEMBER_LEVELS.forEach(level => {
+      memberMap[level] = { level, totalAmount: 0, orderCount: 0, cities: [] }
+    })
 
-        // 从交易数据推导用户列表
-        const memberMap = {}
-        MEMBER_LEVELS.forEach(level => {
-          memberMap[level] = { level, totalAmount: 0, orderCount: 0, cityMap: {} }
-        })
+    ;(transactions || []).forEach(tx => {
+      if (tx.status !== '已完成') return
+      const level = tx.member_level || '非会员'
+      if (!memberMap[level]) memberMap[level] = { level, totalAmount: 0, orderCount: 0, cities: [] }
 
-        txs.forEach(tx => {
-          if (tx.status !== '已完成') return
-          const level = tx.member_level || '非会员'
-          if (!memberMap[level]) memberMap[level] = { level, totalAmount: 0, orderCount: 0, cityMap: {} }
-
-          memberMap[level].totalAmount += tx.final_amount
-          memberMap[level].orderCount += 1
-
-          if (!memberMap[level].cityMap[tx.city]) {
-            memberMap[level].cityMap[tx.city] = { city: tx.city, count: 0, amount: 0 }
-          }
-          memberMap[level].cityMap[tx.city].count += 1
-          memberMap[level].cityMap[tx.city].amount += tx.final_amount
-        })
-
-        // 生成虚拟用户数据
-        const users = MEMBER_LEVELS.flatMap(level => {
-          const data = memberMap[level]
-          const count = data.orderCount > 0 ? Math.max(1, Math.floor(data.orderCount / 3)) : 0
-          return Array.from({ length: count }, (_, i) => ({
-            id: `${level}-${i}`,
-            vip_no: level !== '非会员' ? `VIP${String(10000 + Math.floor(Math.random() * 9999)).slice(1)}` : null,
-            name: `${level}会员${i + 1}`,
-            gender: randomPick(GENDERS),
-            phone: `138${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
-            level,
-            province: Object.keys(data.cityMap)[0] || '上海',
-            city: Object.keys(data.cityMap)[0] || '上海',
-            occupation: randomPick(OCCUPATIONS),
-            birthday: `199${Math.floor(Math.random() * 9)}-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 28) + 1).padStart(2, '0')}`,
-            total_amount: Math.floor(data.totalAmount / count) || 0,
-            order_count: Math.floor(data.orderCount / count) || 0,
-            created_at: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString()
-          }))
-        })
-
-        setTransactions(txs)
-        setMemberStats(statsData.member_stats || [])
-        setUsers(users)
-        setLoading(false)
-      } catch (err) {
-        console.error('用户数据加载失败:', err)
-        setError(err.message)
-        setLoading(false)
+      memberMap[level].totalAmount += tx.final_amount
+      memberMap[level].orderCount += 1
+      if (!memberMap[level].cities.includes(tx.city)) {
+        memberMap[level].cities.push(tx.city)
       }
-    }
-    loadData()
-  }, [])
+    })
 
-  const [users, setUsers] = useState([])
+    return MEMBER_LEVELS.flatMap(level => {
+      const data = memberMap[level]
+      const count = data.orderCount > 0 ? Math.max(1, Math.floor(data.orderCount / 3)) : 0
+      return Array.from({ length: count }, (_, i) => ({
+        id: `${level}-${i}`,
+        vip_no: level !== '非会员' ? `VIP${String(10000 + Math.floor(Math.random() * 9999)).slice(1)}` : null,
+        name: `${level}会员${i + 1}`,
+        gender: randomPick(GENDERS),
+        phone: `138${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+        level,
+        province: data.cities[0] || '上海',
+        city: data.cities[0] || '上海',
+        occupation: randomPick(OCCUPATIONS),
+        birthday: `199${Math.floor(Math.random() * 9)}-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 28) + 1).padStart(2, '0')}`,
+        total_amount: count > 0 ? Math.floor(data.totalAmount / count) : 0,
+        order_count: count > 0 ? Math.floor(data.orderCount / count) : 0
+      }))
+    })
+  }, [transactions])
 
   // 用户分层统计
   const userStats = useMemo(() => {
-    const userList = users || []
-    const stats = MEMBER_LEVELS.map(level => ({
+    const statsData = MEMBER_LEVELS.map(level => ({
       name: level,
-      value: memberStats.find(m => m.level === level)?.orders || userList.filter(u => u && u.level === level).length
+      value: memberStats.find(m => m.level === level)?.orders || users.filter(u => u.level === level).length
     }))
 
     const nonMemberOrders = memberStats.find(m => m.level === '非会员')?.orders || 0
@@ -108,13 +78,13 @@ export default function UsersPage() {
       { name: '麝香客户', value: memberStats.find(m => m.level === '麝香')?.orders || 0 }
     ]
 
-    return { stats, user分层 }
+    return { stats: statsData, user分层 }
   }, [users, memberStats])
 
   // 城市分布
   const cityStats = useMemo(() => {
     const cityMap = {}
-    ;(users || []).forEach(u => {
+    users.forEach(u => {
       if (u && u.city) {
         cityMap[u.city] = (cityMap[u.city] || 0) + 1
       }
@@ -127,7 +97,7 @@ export default function UsersPage() {
 
   // 筛选后的用户
   const filteredUsers = useMemo(() => {
-    return (users || []).filter(user => {
+    return users.filter(user => {
       if (!user) return false
       if (filter.level && user.level !== filter.level) return false
       if (filter.city && user.city !== filter.city) return false
@@ -161,8 +131,7 @@ export default function UsersPage() {
     { key: 'occupation', title: '职业' },
     { key: 'city', title: '城市' },
     { key: 'order_count', title: '订单数' },
-    { key: 'total_amount', title: '累计消费', render: (v) => `¥${(v || 0).toLocaleString()}` },
-    { key: 'created_at', title: '注册日期', render: (v) => v ? new Date(v).toLocaleDateString() : '-' }
+    { key: 'total_amount', title: '累计消费', render: (v) => `¥${(v || 0).toLocaleString()}` }
   ]
 
   if (loading) {
@@ -177,20 +146,12 @@ export default function UsersPage() {
     )
   }
 
-  if (error) {
-    return (
-      <div className="p-6 space-y-6">
-        <h1 className="text-2xl font-bold">用户画像</h1>
-        <div className="p-4 bg-error/20 text-error rounded-lg">
-          数据加载失败: {error}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">用户画像</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">用户画像</h1>
+        <RefreshButton />
+      </div>
 
       {/* 用户分层 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -260,7 +221,7 @@ export default function UsersPage() {
             className="px-3 py-2 bg-primary border border-border rounded-lg text-sm focus:outline-none"
           >
             <option value="">全部城市</option>
-            {[...new Set((users || []).map(u => u.city).filter(Boolean))].map(p => <option key={p} value={p}>{p}</option>)}
+            {[...new Set(users.map(u => u.city).filter(Boolean))].map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
 
