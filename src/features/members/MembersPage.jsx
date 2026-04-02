@@ -8,7 +8,7 @@ import DateRangePicker from '../../components/ui/DateRangePicker'
 import { useDateRange, getDateRange } from '../../context/DateRangeContext'
 import { generateAllMockData } from '../../lib/mock-generator'
 
-const MEMBER_LEVELS = ['龙涎', '沉香', '檀木', '麝香']
+const MEMBER_LEVELS = ['龙涎', '沉香', '檀木', '麝香', '非会员']
 
 export default function MembersPage() {
   const [loading, setLoading] = useState(true)
@@ -105,7 +105,8 @@ export default function MembersPage() {
     '龙涎': { threshold: '累计消费满10万', discount: '8折', point: '2倍积分', exclusive: '专属顾问服务' },
     '沉香': { threshold: '累计消费满5万', discount: '8.5折', point: '1.5倍积分', exclusive: '新品优先购买' },
     '檀木': { threshold: '累计消费满2万', discount: '9折', point: '1.2倍积分', exclusive: '生日专属礼遇' },
-    '麝香': { threshold: '累计消费满5千', discount: '9.5折', point: '1倍积分', exclusive: '会员日活动' }
+    '麝香': { threshold: '累计消费满5千', discount: '9.5折', point: '1倍积分', exclusive: '会员日活动' },
+    '非会员': { threshold: '未注册会员', discount: '无', point: '无', exclusive: '引导注册' }
   }
 
   const columns = [

@@ -29,7 +29,8 @@ export function generateUsers(count = 500) {
   const users = []
   const now = new Date()
 
-  for (let i = 1; i <= count; i++) {
+  // 400名会员（有注册的）
+  for (let i = 1; i <= 400; i++) {
     const level = pick(MEMBER_LEVELS)
     const province = pick(PROVINCES)
     const city = pick(CITIES[province])
@@ -60,6 +61,38 @@ export function generateUsers(count = 500) {
       first_order_time: firstOrderTime.toISOString(),
       last_order_time: lastOrderTime.toISOString(),
       created_at: createdAt.toISOString()
+    })
+  }
+
+  // 100名非会员（消费过但没注册）
+  for (let i = 401; i <= 500; i++) {
+    const province = pick(PROVINCES)
+    const city = pick(CITIES[province])
+    const orderCount = random(1, 5) // 非会员订单数较少
+    const totalAmount = orderCount * random(500, 3000)
+    const gender = pick(GENDERS)
+
+    // 非会员没有注册日期和会员编号
+    const createdAt = null
+    const firstOrderTime = new Date(now - random(1, 180) * 24 * 60 * 60 * 1000)
+    const lastOrderTime = new Date(firstOrderTime.getTime() + random(1, 60) * 24 * 60 * 60 * 1000)
+
+    users.push({
+      id: i,
+      vip_no: null,
+      name: `潜在客户${i - 400}`,
+      phone: generatePhone(),
+      gender,
+      level: '非会员',
+      province,
+      city,
+      occupation: pick(OCCUPATIONS),
+      birthday: generateBirthday(),
+      total_amount: totalAmount,
+      order_count: orderCount,
+      first_order_time: firstOrderTime.toISOString(),
+      last_order_time: lastOrderTime.toISOString(),
+      created_at: null
     })
   }
 
