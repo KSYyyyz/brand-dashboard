@@ -4,16 +4,19 @@ import MetricCard from '../../components/ui/MetricCard'
 import Table from '../../components/ui/Table'
 import BarChartComponent from '../../components/charts/BarChart'
 import StoreDetailModal from '../../components/ui/StoreDetailModal'
+import DateRangePicker from '../../components/ui/DateRangePicker'
+import { useDateRange, getDateRange } from '../../context/DateRangeContext'
 import { generateAllMockData } from '../../lib/mock-generator'
 
 export default function StoresPage() {
   const [loading, setLoading] = useState(true)
   const [stores, setStores] = useState([])
-  const [storeSales, setStoreSales] = useState([])
+  const [allStoreSales, setAllStoreSales] = useState([])
   const [filter, setFilter] = useState({ status: '', province: '', search: '' })
   const [selectedStore, setSelectedStore] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [error, setError] = useState(null)
+  const { range } = useDateRange()
   const pageSize = 25
 
   useEffect(() => {
@@ -21,7 +24,7 @@ export default function StoresPage() {
       try {
         const mockData = generateAllMockData()
         setStores(mockData.stores || [])
-        setStoreSales(mockData.storeSales || [])
+        setAllStoreSales(mockData.storeSales || [])
         setLoading(false)
       } catch (err) {
         console.error('门店数据加载失败:', err)
@@ -30,6 +33,16 @@ export default function StoresPage() {
       }
     }, 500)
   }, [])
+
+  // 根据日期范围过滤销售数据
+  const storeSales = useMemo(() => {
+    const { start, end } = getDateRange(range)
+    if (!start) return allStoreSales // 全部时间
+    return allStoreSales.filter(s => {
+      const date = new Date(s.sale_date)
+      return date >= start && date <= end
+    })
+  }, [allStoreSales, range])
 
   // 门店统计
   const storeStats = useMemo(() => {
@@ -109,7 +122,7 @@ export default function StoresPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="p-6 space-y-6">
         <h1 className="text-2xl font-bold">门店管理</h1>
         <div className="grid grid-cols-3 gap-4">
           {[1,2,3].map(i => <div key={i} className="h-32 bg-secondary rounded-lg animate-pulse" />)}
@@ -120,7 +133,7 @@ export default function StoresPage() {
 
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="p-6 space-y-6">
         <h1 className="text-2xl font-bold">门店管理</h1>
         <div className="p-4 bg-error/20 text-error rounded-lg">
           数据加载失败: {error}
@@ -134,8 +147,12 @@ export default function StoresPage() {
   const avgOrder = totalCustomers > 0 ? totalRevenue / totalCustomers : 0
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">门店管理</h1>
+    <div className="p-6 space-y-6">
+      {/* 标题栏 */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">门店管理</h1>
+        <DateRangePicker />
+      </div>
 
       {/* 核心指标 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

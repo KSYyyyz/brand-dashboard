@@ -1,16 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import MetricCard from '../../components/ui/MetricCard'
 import Card from '../../components/ui/Card'
 import TrendChart from '../../components/charts/TrendChart'
+import DateRangePicker from '../../components/ui/DateRangePicker'
+import { useDateRange, getDateRange } from '../../context/DateRangeContext'
 import { generateAllMockData } from '../../lib/mock-generator'
 
 export default function OverviewPage() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
+  const { range } = useDateRange()
 
   useEffect(() => {
-    // 模拟数据加载
     setTimeout(() => {
       try {
         const mockData = generateAllMockData()
@@ -24,9 +26,30 @@ export default function OverviewPage() {
     }, 500)
   }, [])
 
+  // 根据日期范围过滤数据
+  const filteredData = useMemo(() => {
+    if (!data) return null
+    const { start, end } = getDateRange(range)
+
+    if (!start) return data // 全部时间
+
+    const filterByDate = (items, dateField) => {
+      return items.filter(item => {
+        const date = new Date(item[dateField])
+        return date >= start && date <= end
+      })
+    }
+
+    return {
+      ...data,
+      orders: filterByDate(data.orders, 'order_time'),
+      storeSales: filterByDate(data.storeSales, 'sale_date')
+    }
+  }, [data, range])
+
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="p-6 space-y-6">
         <h1 className="text-2xl font-bold">数据概览</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[1,2,3,4].map(i => <div key={i} className="h-32 bg-secondary rounded-lg animate-pulse" />)}
@@ -37,7 +60,7 @@ export default function OverviewPage() {
 
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="p-6 space-y-6">
         <h1 className="text-2xl font-bold">数据概览</h1>
         <div className="p-4 bg-error/20 text-error rounded-lg">
           数据加载失败: {error}
@@ -46,15 +69,17 @@ export default function OverviewPage() {
     )
   }
 
+  if (!filteredData) return null
+
   // 计算核心指标
-  const totalUsers = data.users.length
-  const totalOrders = data.orders.length
-  const totalGMV = data.orders.reduce((sum, o) => sum + Number(o.amount), 0)
-  const avgOrderAmount = Math.round(totalGMV / totalOrders)
-  const repurchaseRate = Math.round((data.users.filter(u => u.order_count > 1).length / totalUsers) * 100)
+  const totalUsers = filteredData.users.length
+  const totalOrders = filteredData.orders.length
+  const totalGMV = filteredData.orders.reduce((sum, o) => sum + Number(o.amount), 0)
+  const avgOrderAmount = totalOrders > 0 ? Math.round(totalGMV / totalOrders) : 0
+  const repurchaseRate = Math.round((filteredData.users.filter(u => u.order_count > 1).length / Math.max(totalUsers, 1)) * 100)
 
   // GMV趋势数据
-  const gmvTrend = data.storeSales.reduce((acc, sale) => {
+  const gmvTrend = filteredData.storeSales.reduce((acc, sale) => {
     const date = sale.sale_date
     const existing = acc.find(a => a.date === date)
     if (existing) {
@@ -63,19 +88,23 @@ export default function OverviewPage() {
       acc.push({ date, value: Number(sale.revenue) })
     }
     return acc
-  }, []).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-30)
+  }, []).sort((a, b) => new Date(a.date) - new Date(b.date))
 
   // 订单趋势
-  const orderTrend = data.orders.slice(0, 100).map((o, i) => ({
+  const orderTrend = filteredData.orders.slice(0, 100).map((o, i) => ({
     date: o.order_time?.split('T')[0] || '',
     value: i + 1
   }))
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
+      {/* 标题栏 */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">数据概览</h1>
-        <span className="text-sm text-textSecondary">数据更新时间: {new Date().toLocaleString()}</span>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-textSecondary">数据更新时间: {new Date().toLocaleString()}</span>
+          <DateRangePicker />
+        </div>
       </div>
 
       {/* 核心指标卡片 */}
@@ -112,13 +141,13 @@ export default function OverviewPage() {
         />
         <MetricCard
           title="门店数量"
-          value={data.stores.length}
+          value={filteredData.stores.length}
         />
       </div>
 
       {/* 趋势图 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="GMV趋势（近30天）">
+        <Card title="GMV趋势">
           <TrendChart data={gmvTrend} dataKey="value" />
         </Card>
         <Card title="订单量趋势">
@@ -130,12 +159,12 @@ export default function OverviewPage() {
       <Card title="数据采集状态">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {[
-            { name: '用户数据', status: '正常', count: data.users.length },
-            { name: '订单数据', status: '正常', count: data.orders.length },
-            { name: '门店数据', status: '正常', count: data.stores.length },
-            { name: '销售数据', status: '正常', count: data.storeSales.length },
-            { name: '投流数据', status: '正常', count: data.adsData.length },
-            { name: '内容数据', status: '正常', count: data.contentData.length }
+            { name: '用户数据', status: '正常', count: filteredData.users.length },
+            { name: '订单数据', status: '正常', count: filteredData.orders.length },
+            { name: '门店数据', status: '正常', count: filteredData.stores.length },
+            { name: '销售数据', status: '正常', count: filteredData.storeSales.length },
+            { name: '投流数据', status: '正常', count: filteredData.adsData.length },
+            { name: '内容数据', status: '正常', count: filteredData.contentData.length }
           ].map((item) => (
             <div key={item.name} className="flex items-center justify-between p-3 bg-primary rounded-lg">
               <div>
