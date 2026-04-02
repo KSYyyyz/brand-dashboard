@@ -11,7 +11,7 @@ import { useDateRange, getDateRange, getPreviousDateRange } from '../../context/
 import { STORE_STATUS } from '../../lib/constants'
 
 export default function StoresPage() {
-  const { loading, stores, transactions, stats } = useData()
+  const { loading, stores, transactions, stats, lastRefresh } = useData()
   const [filter, setFilter] = useState({ status: '', city: '', search: '' })
   const [selectedStore, setSelectedStore] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
@@ -185,6 +185,11 @@ export default function StoresPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">门店管理</h1>
         <div className="flex items-center gap-4">
+          {lastRefresh && (
+            <span className="text-sm text-textSecondary">
+              更新: {lastRefresh.toLocaleTimeString()}
+            </span>
+          )}
           <RefreshButton />
           <DateRangePicker />
         </div>

@@ -9,7 +9,7 @@ import { useData } from '../../context/DataContext'
 import { useDateRange, getDateRange, getPreviousDateRange } from '../../context/DateRangeContext'
 
 export default function OperationsPage() {
-  const { loading, transactions, stats } = useData()
+  const { loading, transactions, stats, lastRefresh } = useData()
   const { range } = useDateRange()
 
   // 根据日期范围过滤并计算对比
@@ -53,14 +53,14 @@ export default function OperationsPage() {
     const adsPlatforms = ['抖音千川', '腾讯广告', '小红书']
     const adsData = adsPlatforms.map((platform, i) => {
       const gmvRatio = i === 0 ? 0.45 : i === 1 ? 0.30 : 0.25
-      const platformGMV = platformGMV[platform] || (totalGMV * gmvRatio)
+      const pGMV = platformGMV[platform] || (totalGMV * gmvRatio)
       // 高端品牌投流ROI约1.8-2.5
-      const roi = (1.8 + Math.random() * 0.7).toFixed(2)
-      const spend = Math.round(platformGMV / parseFloat(roi))
-      const cpm = 80 + Math.round(Math.random() * 40) // CPM 80-120
-      const impressions = Math.round((spend / platformGMV) * 1000000)
+      const roi = pGMV > 0 ? (1.8 + Math.random() * 0.7).toFixed(2) : '0'
+      const spend = pGMV > 0 ? Math.round(pGMV / parseFloat(roi)) : 0
+      const cpm = 80 + Math.round(Math.random() * 40) // CPM 80-120元
+      const impressions = spend > 0 && cpm > 0 ? Math.round((spend / cpm) * 1000) : 0
       const ctr = (0.02 + Math.random() * 0.01).toFixed(2) // 点击率2-3%
-      const clicks = Math.round(impressions * parseFloat(ctr))
+      const clicks = impressions * parseFloat(ctr)
       const cvr = (0.03 + Math.random() * 0.02).toFixed(2) // 转化率3-5%
       const conversions = Math.round(clicks * parseFloat(cvr))
       return {
@@ -69,7 +69,7 @@ export default function OperationsPage() {
         impressions,
         clicks,
         conversions,
-        gmv: platformGMV,
+        gmv: pGMV,
         roi
       }
     })
@@ -164,6 +164,11 @@ export default function OperationsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">运营分析</h1>
         <div className="flex items-center gap-4">
+          {lastRefresh && (
+            <span className="text-sm text-textSecondary">
+              更新: {lastRefresh.toLocaleTimeString()}
+            </span>
+          )}
           <RefreshButton />
           <DateRangePicker />
         </div>

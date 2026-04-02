@@ -13,7 +13,7 @@ const COLLECTIONS = ['全部', '第一季', '第二季', '第四季', '第五季
 const CATEGORIES = ['全部', '浓香水', '身体护理', '香薰']
 
 export default function ProductsPage() {
-  const { loading, products, stats } = useData()
+  const { loading, products, stats, lastRefresh } = useData()
   const [selectedCollection, setSelectedCollection] = useState('全部')
   const [selectedCategory, setSelectedCategory] = useState('全部')
   const [searchText, setSearchText] = useState('')
@@ -110,7 +110,14 @@ export default function ProductsPage() {
       {/* 标题栏 */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">商品管理</h1>
-        <RefreshButton />
+        <div className="flex items-center gap-4">
+          {lastRefresh && (
+            <span className="text-sm text-textSecondary">
+              更新: {lastRefresh.toLocaleTimeString()}
+            </span>
+          )}
+          <RefreshButton />
+        </div>
       </div>
 
       {/* 核心指标 */}

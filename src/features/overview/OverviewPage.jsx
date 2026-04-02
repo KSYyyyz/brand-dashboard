@@ -37,7 +37,9 @@ export default function OverviewPage() {
 
     // 重新派生统计
     const completedTx = filtered.filter(t => t.status === '已完成')
+    const incompleteTx = filtered.filter(t => t.status !== '已完成' && t.status !== '已退款')
     const prevCompletedTx = prevRange.isAllTime ? [] : prevFiltered.filter(t => t.status === '已完成')
+    const prevIncompleteTx = prevRange.isAllTime ? [] : prevFiltered.filter(t => t.status !== '已完成' && t.status !== '已退款')
 
     const totalGMV = completedTx.reduce((sum, t) => sum + t.final_amount, 0)
     const totalProfit = completedTx.reduce((sum, t) => sum + t.profit, 0)
@@ -83,7 +85,9 @@ export default function OverviewPage() {
     const dailyStats = Object.values(dailyMap).sort((a, b) => new Date(a.date) - new Date(b.date))
 
     const summary = {
+      total_orders: filtered.length,
       completed_orders: completedTx.length,
+      incomplete_orders: incompleteTx.length,
       total_gmv: totalGMV,
       total_profit: totalProfit,
       avg_order_amount: avgOrderAmount
@@ -97,9 +101,17 @@ export default function OverviewPage() {
     }
 
     const periodComparison = {
+      total_orders: {
+        change: calcChange(filtered.length, prevFiltered.length),
+        trend: prevRange.isAllTime ? null : filtered.length >= prevFiltered.length ? 'up' : 'down'
+      },
       completed_orders: {
         change: calcChange(completedTx.length, prevCompletedTx.length),
         trend: prevRange.isAllTime ? null : completedTx.length >= prevCompletedTx.length ? 'up' : 'down'
+      },
+      incomplete_orders: {
+        change: calcChange(incompleteTx.length, prevIncompleteTx.length),
+        trend: prevRange.isAllTime ? null : incompleteTx.length >= prevIncompleteTx.length ? 'up' : 'down'
       },
       total_gmv: {
         change: calcChange(totalGMV, prevTotalGMV),
@@ -148,12 +160,24 @@ export default function OverviewPage() {
       </div>
 
       {/* 核心指标卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <MetricCard
+          title="总订单数"
+          value={summary.total_orders.toLocaleString()}
+          change={periodComparison.total_orders.change}
+          trend={periodComparison.total_orders.trend}
+        />
         <MetricCard
           title="已完成订单"
           value={summary.completed_orders.toLocaleString()}
           change={periodComparison.completed_orders.change}
           trend={periodComparison.completed_orders.trend}
+        />
+        <MetricCard
+          title="未完成订单"
+          value={summary.incomplete_orders.toLocaleString()}
+          change={periodComparison.incomplete_orders.change}
+          trend={periodComparison.incomplete_orders.trend}
         />
         <MetricCard
           title="GMV"

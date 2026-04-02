@@ -7,7 +7,7 @@ import { batchGenerateTransactions, initHistoryData } from '../../lib/api'
 import { PRODUCTS, STORES } from '../../lib/constants'
 
 export default function DataManagementPage() {
-  const { loading, stats, health, refresh } = useData()
+  const { loading, stats, health, refresh, lastRefresh } = useData()
   const products = PRODUCTS
   const stores = STORES
   const [actionLoading, setActionLoading] = useState(null)
@@ -49,7 +49,14 @@ export default function DataManagementPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">数据管理</h1>
-        <RefreshButton />
+        <div className="flex items-center gap-4">
+          {lastRefresh && (
+            <span className="text-sm text-textSecondary">
+              更新: {lastRefresh.toLocaleTimeString()}
+            </span>
+          )}
+          <RefreshButton />
+        </div>
       </div>
 
       {/* 消息提示 */}
