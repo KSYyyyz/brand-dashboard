@@ -27,9 +27,6 @@ export default function StoreDetailModal({ store, sales, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* 遮罩 */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-
       {/* 弹窗 */}
       <div className="relative bg-primary border border-border rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-hidden flex flex-col">
         {/* 头部 */}
