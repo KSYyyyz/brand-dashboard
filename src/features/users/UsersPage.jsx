@@ -30,7 +30,7 @@ export default function UsersPage() {
       memberMap[level] = { level, totalAmount: 0, orderCount: 0, cities: [] }
     })
 
-    ;(transactions || []).forEach(tx => {
+    transactions.forEach(tx => {
       if (tx.status !== '已完成') return
       const level = tx.member_level || '非会员'
       if (!memberMap[level]) memberMap[level] = { level, totalAmount: 0, orderCount: 0, cities: [] }
@@ -134,7 +134,7 @@ export default function UsersPage() {
     { key: 'total_amount', title: '累计消费', render: (v) => `¥${(v || 0).toLocaleString()}` }
   ]
 
-  if (loading) {
+  if (loading && transactions.length === 0) {
     return (
       <div className="p-6 space-y-6">
         <h1 className="text-2xl font-bold">用户画像</h1>

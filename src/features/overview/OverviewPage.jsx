@@ -8,34 +8,73 @@ import { useData } from '../../context/DataContext'
 import { useDateRange, getDateRange } from '../../context/DateRangeContext'
 
 export default function OverviewPage() {
-  const { loading, stats, dailyStats, products, stores, lastRefresh } = useData()
+  const { loading, transactions, products, stores, stats: allStats, dailyStats: allDailyStats, lastRefresh } = useData()
   const { range } = useDateRange()
 
-  // 根据日期范围过滤
-  const filteredDailyStats = useMemo(() => {
+  // 根据日期范围过滤交易
+  const { filteredTx, filteredStats, filteredDailyStats } = useMemo(() => {
     const { start, end } = getDateRange(range)
-    if (!start) return dailyStats || []
-    return (dailyStats || []).filter(d => {
-      const date = new Date(d.date)
-      return date >= start && date <= end
+    let filtered = transactions
+
+    if (start && end) {
+      filtered = transactions.filter(tx => {
+        const date = new Date(tx.order_time)
+        return date >= start && date <= end
+      })
+    }
+
+    // 重新派生统计
+    const completedTx = filtered.filter(t => t.status === '已完成')
+    const totalGMV = completedTx.reduce((sum, t) => sum + t.final_amount, 0)
+    const totalProfit = completedTx.reduce((sum, t) => sum + t.profit, 0)
+    const avgOrderAmount = completedTx.length > 0 ? Math.round(totalGMV / completedTx.length) : 0
+
+    // 平台统计
+    const platformMap = {}
+    completedTx.forEach(t => {
+      if (!platformMap[t.platform]) {
+        platformMap[t.platform] = { platform: t.platform, orders: 0, gmv: 0 }
+      }
+      platformMap[t.platform].orders += 1
+      platformMap[t.platform].gmv += t.final_amount
     })
-  }, [dailyStats, range])
+    const platform_stats = Object.values(platformMap).sort((a, b) => b.gmv - a.gmv)
 
-  const summary = stats?.summary || {}
+    // 城市统计
+    const cityMap = {}
+    completedTx.forEach(t => {
+      if (!cityMap[t.city]) {
+        cityMap[t.city] = { city: t.city, orders: 0, gmv: 0 }
+      }
+      cityMap[t.city].orders += 1
+      cityMap[t.city].gmv += t.final_amount
+    })
+    const city_stats = Object.values(cityMap).sort((a, b) => b.gmv - a.gmv)
 
-  // GMV趋势数据
-  const gmvTrend = filteredDailyStats.map(d => ({
-    date: d.date,
-    value: d.gmv
-  }))
+    // 每日趋势
+    const dailyMap = {}
+    completedTx.forEach(t => {
+      const date = t.order_time.split('T')[0]
+      if (!dailyMap[date]) {
+        dailyMap[date] = { date, orders: 0, gmv: 0, profit: 0 }
+      }
+      dailyMap[date].orders += 1
+      dailyMap[date].gmv += t.final_amount
+      dailyMap[date].profit += t.profit
+    })
+    const dailyStats = Object.values(dailyMap).sort((a, b) => new Date(a.date) - new Date(b.date))
 
-  // 订单趋势
-  const orderTrend = filteredDailyStats.map(d => ({
-    date: d.date,
-    value: d.orders
-  }))
+    const summary = {
+      completed_orders: completedTx.length,
+      total_gmv: totalGMV,
+      total_profit: totalProfit,
+      avg_order_amount: avgOrderAmount
+    }
 
-  if (loading) {
+    return { filteredTx: filtered, filteredStats: { summary, platform_stats, city_stats }, filteredDailyStats: dailyStats }
+  }, [transactions, range])
+
+  if (loading && transactions.length === 0) {
     return (
       <div className="p-6 space-y-6">
         <h1 className="text-2xl font-bold">数据概览</h1>
@@ -46,10 +85,7 @@ export default function OverviewPage() {
     )
   }
 
-  const totalOrders = summary.completed_orders || 0
-  const totalGMV = summary.total_gmv || 0
-  const avgOrderAmount = summary.avg_order_amount || 0
-  const totalProfit = summary.total_profit || 0
+  const summary = filteredStats.summary
 
   return (
     <div className="p-6 space-y-6">
@@ -70,49 +106,51 @@ export default function OverviewPage() {
       {/* 核心指标卡片 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          title="总订单数"
-          value={totalOrders.toLocaleString()}
-          change="+8%"
-          trend="up"
+          title="已完成订单"
+          value={summary.completed_orders.toLocaleString()}
         />
         <MetricCard
           title="GMV"
-          value={`¥${(totalGMV / 10000).toFixed(1)}万`}
-          change="+15%"
-          trend="up"
+          value={`¥${(summary.total_gmv / 10000).toFixed(1)}万`}
         />
         <MetricCard
           title="总利润"
-          value={`¥${(totalProfit / 10000).toFixed(1)}万`}
+          value={`¥${(summary.total_profit / 10000).toFixed(1)}万`}
         />
         <MetricCard
           title="平均客单价"
-          value={`¥${avgOrderAmount}`}
+          value={`¥${summary.avg_order_amount}`}
         />
         <MetricCard
           title="商品种类"
-          value={products?.length || 0}
+          value={products.length}
         />
         <MetricCard
           title="门店数量"
-          value={stores?.length || 0}
+          value={stores.length}
         />
       </div>
 
       {/* 趋势图 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card title="GMV趋势">
-          <TrendChart data={gmvTrend} dataKey="value" />
+          <TrendChart
+            data={filteredDailyStats.map(d => ({ date: d.date, value: d.gmv }))}
+            dataKey="value"
+          />
         </Card>
         <Card title="订单量趋势">
-          <TrendChart data={orderTrend} dataKey="value" />
+          <TrendChart
+            data={filteredDailyStats.map(d => ({ date: d.date, value: d.orders }))}
+            dataKey="value"
+          />
         </Card>
       </div>
 
       {/* 平台分布 */}
       <Card title="平台销售分布">
         <div className="space-y-3">
-          {(stats?.platform_stats || []).slice(0, 5).map(p => (
+          {filteredStats.platform_stats.slice(0, 5).map(p => (
             <div key={p.platform} className="flex items-center justify-between">
               <span className="text-sm text-textPrimary">{p.platform}</span>
               <span className="text-sm font-medium">¥{(p.gmv / 10000).toFixed(1)}万 ({p.orders}单)</span>
@@ -124,7 +162,7 @@ export default function OverviewPage() {
       {/* 城市分布 */}
       <Card title="城市销售分布">
         <div className="space-y-3">
-          {(stats?.city_stats || []).slice(0, 5).map(c => (
+          {filteredStats.city_stats.slice(0, 5).map(c => (
             <div key={c.city} className="flex items-center justify-between">
               <span className="text-sm text-textPrimary">{c.city}</span>
               <span className="text-sm font-medium">¥{(c.gmv / 10000).toFixed(1)}万 ({c.orders}单)</span>

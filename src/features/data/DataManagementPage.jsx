@@ -70,10 +70,10 @@ export default function DataManagementPage() {
             <div key={item.name} className="bg-primary p-4 rounded-lg flex items-center justify-between">
               <div>
                 <div className="text-sm text-textSecondary">{item.name}</div>
-                <div className="text-lg font-bold text-textPrimary">{loading ? '-' : item.value}</div>
+                <div className="text-lg font-bold text-textPrimary">{loading && !health ? '-' : item.value}</div>
               </div>
-              <Badge variant={!loading && item.value > 0 ? 'success' : 'default'}>
-                {!loading && item.value > 0 ? '正常' : '空'}
+              <Badge variant={!loading && health && item.value > 0 ? 'success' : 'default'}>
+                {!loading && health && item.value > 0 ? '正常' : '加载中'}
               </Badge>
             </div>
           ))}
@@ -107,7 +107,7 @@ export default function DataManagementPage() {
       <Card title="数据质量监控">
         <div className="space-y-4">
           {[
-            { name: 'API 连接状态', status: '正常', detail: '模拟服务运行中' },
+            { name: 'API 连接状态', status: health?.status === 'ok' ? '正常' : '异常', detail: health?.status === 'ok' ? '模拟服务运行中' : '连接失败' },
             { name: '交易数据完整性', status: '正常', detail: '所有交易记录完整' },
             { name: '数据时效性', status: '正常', detail: '数据持续生成中' },
             { name: '金额合理性', status: '正常', detail: '客单价500-3580元范围' }
@@ -117,7 +117,7 @@ export default function DataManagementPage() {
                 <div className="text-sm text-textPrimary">{item.name}</div>
                 <div className="text-xs text-textSecondary">{item.detail}</div>
               </div>
-              <Badge variant="success">{item.status}</Badge>
+              <Badge variant={item.status === '正常' ? 'success' : 'error'}>{item.status}</Badge>
             </div>
           ))}
         </div>

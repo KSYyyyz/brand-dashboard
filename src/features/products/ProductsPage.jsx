@@ -8,23 +8,24 @@ import ProductDetailModal from '../../components/ui/ProductDetailModal'
 import RefreshButton from '../../components/ui/RefreshButton'
 import { useData } from '../../context/DataContext'
 
-// 系列映射
-const COLLECTION_MAP = {
-  '初熟之物': '第一季', '体物入微': '第一季', '夜漠回声': '第一季', '柔韧荆棘': '第一季',
-  '腹语之术': '第一季', '席地而坐': '第一季', '人无完人': '第一季',
-  'SIT': '第二季', '羁旅归途': '第二季', '相拥之后': '第二季', '芳草留痕': '第二季',
-  '灵光没顶': '第二季', '空无一木': '第二季', '人面兽心': '第二季',
-  '羽化仙': '第四季', '仙': '第四季',
-  '杉间': '第五季',
-  '蛮柚': '第六季',
-  '丹沉': '第七季', '赤檀': '第七季', '龙吟': '第七季', '麝语': '第七季', '沉檀龙麝': '第七季',
-  '洗发水': '香氛洗护', '护发素': '香氛洗护', '身体乳': '香氛洗护', '护手霜': '香氛洗护', '洗手液': '香氛洗护',
-  '银炭': '其他', '电子香薰机': '其他', '车载香氛': '其他'
+// 系列映射 - 基于商品名称关键词
+const COLLECTION_KEYWORDS = {
+  '第一季': ['初熟之物', '体物入微', '夜漠回声', '柔韧荆棘', '腹语之术', '席地而坐'],
+  '第二季': ['SIT', '羁旅归途', '相拥之后', '芳草留痕', '灵光没顶', '空无一木'],
+  '第四季': ['羽化仙'],
+  '第五季': ['杉间'],
+  '第六季': ['蛮柚'],
+  '第七季': ['丹沉', '赤檀', '龙吟', '麝语'],
+  '香氛洗护': ['洗发水', '护发素', '身体乳', '护手霜', '洗手液'],
+  '其他': ['银炭', '电子香薰机', '车载香氛']
 }
 
 function getCollection(productName) {
-  for (const [key, value] of Object.entries(COLLECTION_MAP)) {
-    if (productName.includes(key)) return value
+  for (const [collection, keywords] of Object.entries(COLLECTION_KEYWORDS)) {
+    if (collection === '其他') continue
+    for (const keyword of keywords) {
+      if (productName.includes(keyword)) return collection
+    }
   }
   return '其他'
 }
@@ -33,7 +34,7 @@ const COLLECTIONS = ['全部', '第一季', '第二季', '第四季', '第五季
 const CATEGORIES = ['全部', '浓香水', '身体护理', '香薰']
 
 export default function ProductsPage() {
-  const { loading, stats, products } = useData()
+  const { loading, products, stats } = useData()
   const [selectedCollection, setSelectedCollection] = useState('全部')
   const [selectedCategory, setSelectedCategory] = useState('全部')
   const [searchText, setSearchText] = useState('')
@@ -43,7 +44,7 @@ export default function ProductsPage() {
 
   const productStats = stats?.product_stats || []
 
-  // 合并产品数据和销售统计
+  // 合并商品和统计数据
   const mergedProducts = useMemo(() => {
     return (products || []).map(p => {
       const stat = productStats.find(s => s.product_id === p.id)
@@ -77,31 +78,32 @@ export default function ProductsPage() {
   const statsData = useMemo(() => {
     const totalSales = productStats.reduce((sum, p) => sum + p.orders, 0)
     const totalRevenue = productStats.reduce((sum, p) => sum + p.gmv, 0)
-    const avgPrice = mergedProducts.length > 0 ? mergedProducts.reduce((sum, p) => sum + p.price, 0) / mergedProducts.length : 0
+    const avgPrice = products.length > 0 ? products.reduce((sum, p) => sum + p.price, 0) / products.length : 0
     return { totalSales, totalRevenue, avgPrice }
-  }, [mergedProducts, productStats])
+  }, [products, productStats])
 
-  // 商品销量排行
+  // 商品销量排行 TOP5
   const salesRanking = useMemo(() => {
     return [...productStats]
       .sort((a, b) => b.orders - a.orders)
       .slice(0, 5)
-      .map(p => ({ name: p.product_name?.slice(0, 6) || '', value: p.orders }))
+      .map(p => ({
+        name: p.product_name?.slice(0, 8) || '',
+        value: p.orders
+      }))
   }, [productStats])
 
-  // 商品分类销量
+  // 分类销量 - 使用 transactions 的 category
   const categorySales = useMemo(() => {
     const map = {}
-    mergedProducts.forEach(p => {
-      const stat = productStats.find(s => s.product_id === p.id)
-      const orders = stat?.orders || 0
-      map[p.category] = (map[p.category] || 0) + orders
+    productStats.forEach(p => {
+      const cat = p.category || '其他'
+      map[cat] = (map[cat] || 0) + p.orders
     })
     return Object.entries(map)
       .map(([name, value]) => ({ name, value }))
-      .filter(item => item.value > 0)
       .sort((a, b) => b.value - a.value)
-  }, [mergedProducts, productStats])
+  }, [productStats])
 
   const columns = [
     { key: 'id', title: '编号', render: (v) => <span className="text-textSecondary">#{String(v).padStart(3, '0')}</span> },
@@ -113,7 +115,7 @@ export default function ProductsPage() {
     { key: 'revenue', title: '销售额', render: (_, row) => `¥${((row.revenue || 0)).toLocaleString()}` }
   ]
 
-  if (loading) {
+  if (loading && products.length === 0) {
     return (
       <div className="p-6 space-y-6">
         <h1 className="text-2xl font-bold">商品管理</h1>
@@ -134,7 +136,7 @@ export default function ProductsPage() {
 
       {/* 核心指标 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard title="商品种类" value={mergedProducts.length} />
+        <MetricCard title="商品种类" value={products.length} />
         <MetricCard title="总销量" value={statsData.totalSales} />
         <MetricCard title="总销售额" value={`¥${(statsData.totalRevenue / 10000).toFixed(0)}万`} />
         <MetricCard title="平均单价" value={`¥${Math.round(statsData.avgPrice)}`} />

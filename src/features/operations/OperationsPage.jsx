@@ -1,184 +1,104 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useMemo } from 'react'
 import Card from '../../components/ui/Card'
 import MetricCard from '../../components/ui/MetricCard'
 import TrendChart from '../../components/charts/TrendChart'
 import BarChartComponent from '../../components/charts/BarChart'
 import DateRangePicker from '../../components/ui/DateRangePicker'
 import RefreshButton from '../../components/ui/RefreshButton'
+import { useData } from '../../context/DataContext'
 import { useDateRange, getDateRange } from '../../context/DateRangeContext'
 
-const ADS_PLATFORMS = ['抖音千川', '腾讯广告', '小红书']
-const CONTENT_PLATFORMS = ['抖音', '小红书', '微信视频号']
-
-function generateMockAdsData(days = 30) {
-  const data = []
-  let id = 1
-  const now = new Date()
-
-  for (const platform of ADS_PLATFORMS) {
-    for (let d = 0; d < days; d++) {
-      const reportDate = new Date(now - d * 24 * 60 * 60 * 1000)
-      const spend = Math.floor(5000 + Math.random() * 15000)
-      const impressions = Math.floor(100000 + Math.random() * 400000)
-      const clicks = Math.floor(impressions * (0.1 + Math.random() * 0.2))
-      const conversions = Math.floor(clicks * (0.05 + Math.random() * 0.1))
-      const gmv = conversions * Math.floor(500 + Math.random() * 1500)
-
-      data.push({
-        id: id++,
-        platform,
-        campaign: `${platform}品牌推广`,
-        spend,
-        impressions,
-        clicks,
-        conversions,
-        gmv,
-        roi: Math.round(gmv / spend * 100) / 100,
-        report_date: reportDate.toISOString().split('T')[0]
-      })
-    }
-  }
-  return data
-}
-
-function generateMockContentData(days = 30) {
-  const data = []
-  const contentTypes = ['产品种草', '品牌故事', 'KOL合作', '用户测评']
-  let id = 1
-  const now = new Date()
-
-  for (const platform of CONTENT_PLATFORMS) {
-    for (let d = 0; d < days; d++) {
-      const publishDate = new Date(now - d * 24 * 60 * 60 * 1000)
-      const views = Math.floor(10000 + Math.random() * 90000)
-      const likes = Math.floor(views * (0.05 + Math.random() * 0.15))
-      const comments = Math.floor(likes * (0.1 + Math.random() * 0.2))
-      const shares = Math.floor(likes * (0.05 + Math.random() * 0.1))
-
-      data.push({
-        id: id++,
-        platform,
-        content_type: contentTypes[Math.floor(Math.random() * contentTypes.length)],
-        title: `${platform}内容笔记${d + 1}`,
-        views,
-        likes,
-        comments,
-        shares,
-        fans_growth: Math.floor(50 + Math.random() * 450),
-        publish_date: publishDate.toISOString().split('T')[0]
-      })
-    }
-  }
-  return data
-}
-
 export default function OperationsPage() {
-  const [loading, setLoading] = useState(true)
-  const [allAdsData, setAllAdsData] = useState([])
-  const [allContentData, setAllContentData] = useState([])
-  const [error, setError] = useState(null)
+  const { loading, transactions, stats } = useData()
   const { range } = useDateRange()
 
-  // 生成或刷新数据
-  const generateData = useCallback(() => {
-    setAllAdsData(generateMockAdsData(30))
-    setAllContentData(generateMockContentData(30))
-  }, [])
-
-  useEffect(() => {
-    generateData()
-    setLoading(false)
-  }, [generateData])
-
-  useEffect(() => {
-    setTimeout(() => {
-      try {
-        // 生成模拟投流和内容数据
-        const adsData = generateMockAdsData(30)
-        const contentData = generateMockContentData(30)
-        setAllAdsData(adsData)
-        setAllContentData(contentData)
-        setLoading(false)
-      } catch (err) {
-        console.error('运营数据加载失败:', err)
-        setError(err.message)
-        setLoading(false)
-      }
-    }, 300)
-  }, [])
-
-  // 根据日期范围过滤数据
-  const { adsData, contentData } = useMemo(() => {
+  // 根据日期范围过滤
+  const { filteredTx, adsData, contentData } = useMemo(() => {
     const { start, end } = getDateRange(range)
+    let filtered = transactions
 
-    const filterByDate = (data, dateField) => {
-      if (!start) return data
-      return data.filter(d => {
-        const date = new Date(d[dateField])
+    if (start && end) {
+      filtered = transactions.filter(tx => {
+        const date = new Date(tx.order_time)
         return date >= start && date <= end
       })
     }
 
-    return {
-      adsData: filterByDate(allAdsData, 'report_date'),
-      contentData: filterByDate(allContentData, 'publish_date')
-    }
-  }, [allAdsData, allContentData, range])
+    // 从交易数据派生投流数据（按城市/平台模拟）
+    const completedTx = filtered.filter(t => t.status === '已完成')
+    const totalGMV = completedTx.reduce((sum, t) => sum + t.final_amount, 0)
+    const totalOrders = completedTx.length
 
-  // 投流统计
+    // 按平台统计 GMV
+    const platformGMV = {}
+    completedTx.forEach(t => {
+      if (!platformGMV[t.platform]) platformGMV[t.platform] = 0
+      platformGMV[t.platform] += t.final_amount
+    })
+
+    // 模拟投流数据（基于 GMV 和平台）
+    const adsPlatforms = ['抖音千川', '腾讯广告', '小红书']
+    const adsData = adsPlatforms.map((platform, i) => {
+      const gmvRatio = i === 0 ? 0.4 : i === 1 ? 0.35 : 0.25
+      const gmv = totalGMV * gmvRatio
+      const spend = Math.round(gmv / (2 + Math.random()))
+      const impressions = Math.round(spend * 20)
+      const clicks = Math.round(impressions * 0.15)
+      const conversions = Math.round(clicks * 0.08)
+      return {
+        platform,
+        spend,
+        impressions,
+        clicks,
+        conversions,
+        gmv: Math.round(conversions * 1500),
+        roi: spend > 0 ? (gmv / spend).toFixed(2) : '0'
+      }
+    })
+
+    // 模拟内容数据
+    const contentPlatforms = ['抖音', '小红书', '微信视频号']
+    const contentData = contentPlatforms.map(platform => {
+      const baseViews = platform === '抖音' ? 80000 : platform === '小红书' ? 50000 : 30000
+      const views = Math.round(baseViews * (totalOrders / 100) * (0.8 + Math.random() * 0.4))
+      const likes = Math.round(views * 0.1)
+      const comments = Math.round(likes * 0.15)
+      const shares = Math.round(likes * 0.08)
+      return {
+        platform,
+        views,
+        likes,
+        comments,
+        shares,
+        fans_growth: Math.round(likes * 0.05)
+      }
+    })
+
+    return { filteredTx: filtered, adsData, contentData }
+  }, [transactions, range])
+
+  // 投流统计汇总
   const adsStats = useMemo(() => {
-    const platforms = [...new Set(adsData.map(d => d.platform))]
-    return platforms.map(platform => {
-      const platformData = adsData.filter(d => d.platform === platform)
-      const totalSpend = platformData.reduce((sum, d) => sum + Number(d.spend), 0)
-      const totalGMV = platformData.reduce((sum, d) => sum + Number(d.gmv), 0)
-      const totalImpressions = platformData.reduce((sum, d) => sum + d.impressions, 0)
-      const totalClicks = platformData.reduce((sum, d) => sum + d.clicks, 0)
-      const totalConversions = platformData.reduce((sum, d) => sum + d.conversions, 0)
-      return {
-        platform,
-        spend: totalSpend,
-        gmv: totalGMV,
-        roi: totalSpend > 0 ? totalGMV / totalSpend : 0,
-        impressions: totalImpressions,
-        clicks: totalClicks,
-        conversions: totalConversions,
-        ctr: totalImpressions > 0 ? (totalClicks / totalImpressions * 100).toFixed(2) : '0',
-        cvr: totalClicks > 0 ? (totalConversions / totalClicks * 100).toFixed(2) : '0'
-      }
-    })
-  }, [adsData])
+    const totalSpend = adsData.reduce((sum, d) => sum + d.spend, 0)
+    const totalGMV = adsData.reduce((sum, d) => sum + d.gmv, 0)
+    const totalViews = contentData.reduce((sum, d) => sum + d.views, 0)
+    return { totalSpend, totalGMV, roi: totalSpend > 0 ? (totalGMV / totalSpend).toFixed(2) : '0', totalViews }
+  }, [adsData, contentData])
 
-  // 内容统计
-  const contentStats = useMemo(() => {
-    const platforms = [...new Set(contentData.map(d => d.platform))]
-    return platforms.map(platform => {
-      const platformData = contentData.filter(d => d.platform === platform)
-      return {
-        platform,
-        views: platformData.reduce((sum, d) => sum + d.views, 0),
-        likes: platformData.reduce((sum, d) => sum + d.likes, 0),
-        comments: platformData.reduce((sum, d) => sum + d.comments, 0),
-        shares: platformData.reduce((sum, d) => sum + d.shares, 0),
-        fansGrowth: platformData.reduce((sum, d) => sum + d.fans_growth, 0)
-      }
-    })
-  }, [contentData])
-
-  // 投流趋势
+  // 投流趋势（按天）
   const adsTrend = useMemo(() => {
-    const grouped = {}
-    adsData.forEach(d => {
-      const date = d.report_date
-      if (!grouped[date]) grouped[date] = 0
-      grouped[date] += Number(d.gmv)
+    const dailyMap = {}
+    filteredTx.filter(t => t.status === '已完成').forEach(t => {
+      const date = t.order_time.split('T')[0]
+      if (!dailyMap[date]) dailyMap[date] = 0
+      dailyMap[date] += t.final_amount
     })
-    return Object.entries(grouped)
+    return Object.entries(dailyMap)
       .map(([date, value]) => ({ date, value }))
       .sort((a, b) => new Date(a.date) - new Date(b.date))
-  }, [adsData])
+  }, [filteredTx])
 
-  if (loading) {
+  if (loading && transactions.length === 0) {
     return (
       <div className="p-6 space-y-6">
         <h1 className="text-2xl font-bold">运营分析</h1>
@@ -188,21 +108,6 @@ export default function OperationsPage() {
       </div>
     )
   }
-
-  if (error) {
-    return (
-      <div className="p-6 space-y-6">
-        <h1 className="text-2xl font-bold">运营分析</h1>
-        <div className="p-4 bg-error/20 text-error rounded-lg">
-          数据加载失败: {error}
-        </div>
-      </div>
-    )
-  }
-
-  const totalSpend = adsStats.reduce((sum, s) => sum + s.spend, 0)
-  const totalGMV = adsStats.reduce((sum, s) => sum + s.gmv, 0)
-  const totalViews = contentStats.reduce((sum, s) => sum + s.views, 0)
 
   return (
     <div className="p-6 space-y-6">
@@ -217,10 +122,10 @@ export default function OperationsPage() {
 
       {/* 投流核心指标 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard title="总投放花费" value={`¥${(totalSpend / 10000).toFixed(1)}万`} />
-        <MetricCard title="总GMV" value={`¥${(totalGMV / 10000).toFixed(1)}万`} />
-        <MetricCard title="整体ROI" value={totalSpend > 0 ? (totalGMV / totalSpend).toFixed(2) : '0'} />
-        <MetricCard title="内容总播放" value={(totalViews / 10000).toFixed(1) + '万'} />
+        <MetricCard title="总投放花费" value={`¥${(adsStats.totalSpend / 10000).toFixed(1)}万`} />
+        <MetricCard title="总GMV" value={`¥${(adsStats.totalGMV / 10000).toFixed(1)}万`} />
+        <MetricCard title="整体ROI" value={adsStats.roi} />
+        <MetricCard title="内容总播放" value={`${(adsStats.totalViews / 10000).toFixed(1)}万`} />
       </div>
 
       {/* 投流效率 */}
@@ -233,19 +138,19 @@ export default function OperationsPage() {
                 <th className="text-right py-3 px-4 text-textSecondary">花费</th>
                 <th className="text-right py-3 px-4 text-textSecondary">GMV</th>
                 <th className="text-right py-3 px-4 text-textSecondary">ROI</th>
-                <th className="text-right py-3 px-4 text-textSecondary">点击率</th>
-                <th className="text-right py-3 px-4 text-textSecondary">转化率</th>
+                <th className="text-right py-3 px-4 text-textSecondary">曝光</th>
+                <th className="text-right py-3 px-4 text-textSecondary">点击</th>
               </tr>
             </thead>
             <tbody>
-              {adsStats.map(stat => (
+              {adsData.map(stat => (
                 <tr key={stat.platform} className="border-b border-border/50">
                   <td className="py-3 px-4 text-accent">{stat.platform}</td>
-                  <td className="py-3 px-4 text-right">¥{stat.spend.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right">¥{stat.gmv.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right text-success">{stat.roi.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right">{stat.ctr}%</td>
-                  <td className="py-3 px-4 text-right">{stat.cvr}%</td>
+                  <td className="py-3 px-4 text-right">¥{(stat.spend / 10000).toFixed(1)}万</td>
+                  <td className="py-3 px-4 text-right">¥{(stat.gmv / 10000).toFixed(1)}万</td>
+                  <td className="py-3 px-4 text-right text-success">{stat.roi}</td>
+                  <td className="py-3 px-4 text-right">{(stat.impressions / 10000).toFixed(0)}万</td>
+                  <td className="py-3 px-4 text-right">{(stat.clicks / 10000).toFixed(0)}万</td>
                 </tr>
               ))}
             </tbody>
@@ -253,14 +158,14 @@ export default function OperationsPage() {
         </div>
       </Card>
 
-      {/* 投流趋势 */}
+      {/* 趋势图 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card title="投流GMV趋势">
           <TrendChart data={adsTrend} dataKey="value" height={250} />
         </Card>
         <Card title="各平台ROI对比">
           <BarChartComponent
-            data={adsStats.map(s => ({ name: s.platform, value: s.roi }))}
+            data={adsData.map(s => ({ name: s.platform, value: parseFloat(s.roi) || 0 }))}
             nameKey="name"
             dataKey="value"
             height={250}
@@ -272,13 +177,13 @@ export default function OperationsPage() {
       <Card title="内容表现">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[
-            { label: '总播放', key: 'views', format: (v) => (v / 10000).toFixed(1) + '万' },
+            { label: '总播放', key: 'views', format: (v) => `${(v / 10000).toFixed(1)}万` },
             { label: '总点赞', key: 'likes', format: (v) => v.toLocaleString() },
             { label: '总评论', key: 'comments', format: (v) => v.toLocaleString() },
             { label: '总分享', key: 'shares', format: (v) => v.toLocaleString() },
-            { label: '总涨粉', key: 'fansGrowth', format: (v) => v.toLocaleString() }
+            { label: '总涨粉', key: 'fans_growth', format: (v) => v.toLocaleString() }
           ].map(item => {
-            const total = contentStats.reduce((sum, s) => sum + (s[item.key] || 0), 0)
+            const total = contentData.reduce((sum, s) => sum + (s[item.key] || 0), 0)
             return (
               <div key={item.key} className="bg-primary p-4 rounded-lg text-center">
                 <div className="text-textSecondary text-sm">{item.label}</div>
@@ -304,12 +209,12 @@ export default function OperationsPage() {
               </tr>
             </thead>
             <tbody>
-              {contentStats.map(stat => {
-                const interactionRate = stat.views > 0 ? ((stat.likes + stat.comments + stat.shares) / stat.views * 100).toFixed(2) : '0'
+              {contentData.map(stat => {
+                const interactionRate = stat.views > 0 ? (((stat.likes + stat.comments + stat.shares) / stat.views) * 100).toFixed(2) : '0'
                 return (
                   <tr key={stat.platform} className="border-b border-border/50">
                     <td className="py-3 px-4 text-accent">{stat.platform}</td>
-                    <td className="py-3 px-4 text-right">{stat.views.toLocaleString()}</td>
+                    <td className="py-3 px-4 text-right">{(stat.views / 10000).toFixed(1)}万</td>
                     <td className="py-3 px-4 text-right">{stat.likes.toLocaleString()}</td>
                     <td className="py-3 px-4 text-right text-success">{interactionRate}%</td>
                   </tr>
