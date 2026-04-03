@@ -99,7 +99,22 @@ export function DataProvider({ children }) {
         fetchTransactions({ limit: 2000 })
       ])
 
-      const txs = txsData.data || []
+      let txs = txsData.data || []
+      // 如果API还有更多数据，继续获取
+      const totalTx = healthData?.total_transactions || 0
+      if (txs.length < totalTx && totalTx <= 10000) {
+        const allTxs = [...txs]
+        let offset = txs.length
+        while (allTxs.length < totalTx) {
+          const moreData = await fetchTransactions({ limit: 1000, offset })
+          const more = moreData.data || []
+          if (more.length === 0) break
+          allTxs.push(...more)
+          offset += more.length
+        }
+        txs = allTxs.slice(0, 5000) // 最多保留5000条
+      }
+
       transactionsRef.current = txs
 
       setHealth(healthData)
@@ -118,7 +133,7 @@ export function DataProvider({ children }) {
     setLoading(true)
     setError(null)
     try {
-      const newTxsData = await fetchTransactions({ limit: 100 })
+      const newTxsData = await fetchTransactions({ limit: 500 })
       const newTxs = (newTxsData.data || [])
         .filter(t => !transactionsRef.current.some(existing => existing.order_no === t.order_no))
 
