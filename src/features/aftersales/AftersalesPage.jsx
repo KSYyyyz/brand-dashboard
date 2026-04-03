@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Table from '../../components/ui/Table'
+import AftersaleDetailModal from '../../components/ui/AftersaleDetailModal'
 import RefreshButton from '../../components/ui/RefreshButton'
 import { useData } from '../../context/DataContext'
 
@@ -30,6 +31,7 @@ export default function AftersalesPage() {
   const { loading, transactions, lastRefresh } = useData()
   const [filter, setFilter] = useState({ type: '', status: '', search: '' })
   const [currentPage, setCurrentPage] = useState(1)
+  const [selectedAftersale, setSelectedAftersale] = useState(null)
   const pageSize = 10
 
   // 从退款订单和随机抽样生成售后数据
@@ -46,6 +48,7 @@ export default function AftersalesPage() {
         member_level: tx.member_level || '非会员',
         product_name: tx.product_name,
         order_date: tx.order_time,
+        order_amount: tx.final_amount,
         as_type: '退货退款',
         as_reason: randomPick(AS_REASONS),
         as_content: `申请退货退款，订单金额¥${tx.final_amount?.toLocaleString()}`,
@@ -70,6 +73,7 @@ export default function AftersalesPage() {
           member_level: tx.member_level || '非会员',
           product_name: tx.product_name,
           order_date: tx.order_time,
+          order_amount: tx.final_amount,
           as_type: type,
           as_reason: randomPick(AS_REASONS),
           as_content: type === '咨询' ? '咨询产品使用方法' : `反馈：${randomPick(AS_REASONS)}`,
@@ -211,7 +215,7 @@ export default function AftersalesPage() {
           </span>
         </div>
 
-        <Table columns={columns} data={paginatedList} />
+        <Table columns={columns} data={paginatedList} onRowClick={setSelectedAftersale} />
 
         {/* 分页 */}
         <div className="flex justify-between items-center mt-4">
@@ -236,6 +240,14 @@ export default function AftersalesPage() {
           </div>
         </div>
       </Card>
+
+      {/* 售后详情弹窗 */}
+      {selectedAftersale && (
+        <AftersaleDetailModal
+          aftersale={selectedAftersale}
+          onClose={() => setSelectedAftersale(null)}
+        />
+      )}
     </div>
   )
 }

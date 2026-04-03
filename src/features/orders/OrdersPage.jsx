@@ -6,13 +6,19 @@ import RefreshButton from '../../components/ui/RefreshButton'
 import { useData } from '../../context/DataContext'
 
 const STATUS_OPTIONS = ['全部', '已完成', '待付款', '已退款', '已取消']
-const PLATFORMS = ['全部', '抖音', '小红书', '微信']
 
 export default function OrdersPage() {
   const { loading, transactions, lastRefresh } = useData()
   const [filter, setFilter] = useState({ status: '', platform: '', search: '' })
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 10
+
+  // 从交易数据获取平台列表
+  const platforms = useMemo(() => {
+    const set = new Set()
+    transactions.forEach(tx => { if (tx.platform) set.add(tx.platform) })
+    return ['全部', ...Array.from(set).sort()]
+  }, [transactions])
 
   // 订单统计
   const orderStats = useMemo(() => {
@@ -147,7 +153,7 @@ export default function OrdersPage() {
             }}
             className="px-3 py-2 bg-primary border border-border rounded-lg text-sm focus:outline-none"
           >
-            {PLATFORMS.map(p => <option key={p} value={p === '全部' ? '' : p}>{p}</option>)}
+            {platforms.map(p => <option key={p} value={p === '全部' ? '' : p}>{p}</option>)}
           </select>
           <span className="text-sm text-textSecondary self-center">
             共 {filteredOrders.length} 条订单
