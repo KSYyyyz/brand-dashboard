@@ -7,6 +7,8 @@ import OperationsPage from './features/operations/OperationsPage'
 import StoresPage from './features/stores/StoresPage'
 import MembersPage from './features/members/MembersPage'
 import ProductsPage from './features/products/ProductsPage'
+import OrdersPage from './features/orders/OrdersPage'
+import AftersalesPage from './features/aftersales/AftersalesPage'
 import DataManagementPage from './features/data/DataManagementPage'
 
 const navItems = [
@@ -14,6 +16,8 @@ const navItems = [
   { path: '/users', label: '用户画像' },
   { path: '/members', label: '会员管理' },
   { path: '/products', label: '商品管理' },
+  { path: '/orders', label: '订单管理' },
+  { path: '/aftersales', label: '售后管理' },
   { path: '/operations', label: '运营分析' },
   { path: '/stores', label: '门店管理' },
   { path: '/data', label: '数据管理' }
@@ -70,6 +74,8 @@ export default function App() {
               <Route path="/users" element={<UsersPage />} />
               <Route path="/members" element={<MembersPage />} />
               <Route path="/products" element={<ProductsPage />} />
+              <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/aftersales" element={<AftersalesPage />} />
               <Route path="/operations" element={<OperationsPage />} />
               <Route path="/stores" element={<StoresPage />} />
               <Route path="/data" element={<DataManagementPage />} />

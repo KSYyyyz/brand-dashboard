@@ -112,7 +112,7 @@ export function DataProvider({ children }) {
           allTxs.push(...more)
           offset += more.length
         }
-        txs = allTxs.slice(0, 5000) // 最多保留5000条
+        txs = allTxs
       }
 
       transactionsRef.current = txs
