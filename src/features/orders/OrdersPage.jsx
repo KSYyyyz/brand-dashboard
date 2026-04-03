@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Table from '../../components/ui/Table'
+import PieChartComponent from '../../components/charts/PieChart'
 import RefreshButton from '../../components/ui/RefreshButton'
 import { useData } from '../../context/DataContext'
 
@@ -54,6 +55,19 @@ export default function OrdersPage() {
       return true
     })
   }, [transactions, filter])
+
+  // 按平台统计（基于筛选后的订单）
+  const platformStats = useMemo(() => {
+    const map = {}
+    filteredOrders.forEach(tx => {
+      const p = tx.platform || '未知'
+      if (!map[p]) map[p] = 0
+      map[p]++
+    })
+    return Object.entries(map)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+  }, [filteredOrders])
 
   const paginatedOrders = useMemo(() => {
     const start = (currentPage - 1) * pageSize
@@ -120,6 +134,31 @@ export default function OrdersPage() {
           <div className="text-2xl font-bold text-textSecondary">{orderStats.cancelled.toLocaleString()}</div>
         </div>
       </div>
+
+      {/* 平台订单分布 */}
+      <Card title="平台订单分布">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <PieChartComponent data={platformStats} nameKey="name" dataKey="value" height={280} />
+          <div className="space-y-3">
+            {platformStats.map((stat, i) => {
+              const colors = ['bg-[#c9a962]', 'bg-[#d4b978]', 'bg-[#8b7355]', 'bg-[#6b5b4f]', 'bg-[#4a4a4a]']
+              const percent = filteredOrders.length > 0 ? ((stat.value / filteredOrders.length) * 100).toFixed(1) : 0
+              return (
+                <div key={stat.name} className="flex items-center justify-between p-3 bg-primary rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${colors[i % colors.length]}`} />
+                    <span className="text-sm">{stat.name}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-medium">{stat.value} 单</span>
+                    <span className="text-xs text-textSecondary">{percent}%</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </Card>
 
       {/* 订单列表 */}
       <Card title="订单明细">
